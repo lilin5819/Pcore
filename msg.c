@@ -6,30 +6,60 @@
 #include "list.h"
 #include "log.h"
 
+// typedef struct
+// {
+// 	const char *type;
+// 	msg_cb_t cb;
+// } msg_cb_map_t;
+
 typedef struct
 {
 	const char *type;
-	msg_cb_t cb;
-} msg_cb_map_t;
+	on_msg_call call;
+	uv_work_cb cb;
+	uv_after_work_cb after_cb;
+} msg_call_map_t;
 
-msg_cb_map_t msg_cb_array[] = {
-	{"keyngreq", msg_keyngreq_cb},
-	{"dh", msg_dh_cb},
-	{"keepalive", msg_keepalive_cb}};
+// msg_cb_map_t msg_cb_array[] = {
+// 	{"keyngreq", msg_keyngreq_cb},
+// 	{"dh", msg_dh_cb},
+// 	{"keepalive", msg_keepalive_cb}};
 
-struct list_head g_msg_list;
-LIST_HEAD(g_msg_list);
+msg_call_map_t msg_call_array[] = {
+	{"keepalive", 	msg_keepalive_call,	msg_keepalive_cb,	msg_keepalive_after_cb},
+	{"keyngreq", 	msg_keyngreq_call,	msg_keyngreq_cb,	msg_keyngreq_after_cb},
+	{"dh", 			msg_dh_call,		msg_dh_cb,			msg_dh_after_cb}
+	};
 
-struct list_head *msg_list_init(void)
+// struct list_head *g_msg_list = NULL;
+// LIST_HEAD(g_msg_list);
+
+// struct list_head *get_msg_list(void)
+// {
+// 	log_();
+// 	// elink_ctx *elink = get_elink_server_ctx();
+// 	return g_msg_list;
+// }
+
+void msg_free(elink_msg_t *msg)
 {
-	log_();
-	INIT_LIST_HEAD(&g_msg_list);
-	return &g_msg_list;
+	msg->client_ctx = NULL;
+	FREE(msg->type);
+	FREE(msg->ip);
+	FREE(msg->mac);
+	if(msg->json)
+		cJSON_Delete(msg->json);
 }
 
-static struct list_head *get_msg_list(void)
+void msg_list_free(struct list_head *msg_list)
 {
-	return &g_msg_list;
+	elink_msg_t *node,*next;
+	ok(msg_list && msg_list->next && msg_list->prev);
+	if(msg_list && msg_list->next && msg_list->prev)
+		list_for_each_entry_safe(node,next,msg_list,list){
+			list_del(&node->list);
+			msg_free(node);
+		}
 }
 
 int elink_check_header(const char *buf, int hdr_size)
@@ -131,6 +161,8 @@ char *json_get_str(cJSON *json, char *key)
 	return (item && item->type == cJSON_String) ? item->valuestring : NULL;
 }
 
+
+
 void send_msg(elink_client_ctx *client, uv_buf_t *send_buf)
 {
 	log_();
@@ -144,7 +176,7 @@ void send_msg(elink_client_ctx *client, uv_buf_t *send_buf)
 
 void elink_msg_free(elink_msg_t *msg)
 {
-	if (msg->list.next)
+	if (msg->list.next && msg->list.prev)
 		list_del(&msg->list);
 	log_();
 	FREE(msg->type);
@@ -164,7 +196,7 @@ void recved_handle(uv_stream_t *stream, uv_buf_t *recved_buf)
 	char *type = NULL;
 	char *mac = NULL;
 	uint32_t seq = 0;
-	uv_buf_t unpack_buf;
+	uv_buf_t unpack_buf = {0};
 	elink_msg_t *msg = (elink_msg_t *)malloc(sizeof(elink_msg_t));
 	memset(msg, 0, sizeof(*msg));
 	// log_s(recved_buf->base);
@@ -190,11 +222,13 @@ void recved_handle(uv_stream_t *stream, uv_buf_t *recved_buf)
 			msg->mac = strdup(mac);
 			msg->seq = seq;
 			msg->json = cJSON_Duplicate(json, 1);
+			msg->client_ctx = client_ctx;
 			INIT_LIST_HEAD(&msg->list);
-			list_add(&msg->list, &g_msg_list);
+			// list_add(&msg->list, g_msg_list);
+			list_add(&msg->list, &client_ctx->msg_list);
 			msg->flag |= MSG_ST_IN_LIST;
 			log("type:%s mac:%s sequence:%d", type, mac, seq);
-			msg_cb_dispatch(client_ctx, msg);
+			msg_cb_dispatch(msg);
 		}
 		cJSON_Delete(json);
 	}
@@ -204,37 +238,71 @@ void recved_handle(uv_stream_t *stream, uv_buf_t *recved_buf)
 	log_();
 }
 
-void msg_cb_dispatch(elink_client_ctx *client, elink_msg_t *msg)
+void msg_cb_dispatch(elink_msg_t *msg)
 {
 	uv_buf_t send_buf = {0};
+	uv_work_t req = {0};
 	if (!msg->json || !msg->mac)
 	{
 		log_e("json or type is NULL");
 		return;
 	}
-	// if(!strcmp(type,"keyngreq")){
-	// 	msg_cb_keyngreq(json,mac,sequence);
+
+	// for (int i = 0; i < sizeof(msg_cb_array) / sizeof(msg_cb_t); i++)
+	// {
+	// 	log("msg->type=%d msg_cb_array[%d].type=%s", msg->type, i, msg_cb_array[i].type);
+	// 	if (!strcmp(msg_cb_array[i].type, msg->type))
+	// 	{
+	// 		send_buf = msg_cb_array[i].cb(client, msg);
+	// 		log_s(send_buf.base);
+	// 		break;
+	// 	}
 	// }
-	for (int i = 0; i < sizeof(msg_cb_array) / sizeof(msg_cb_t); i++)
+	// log("send_buf.base:%p send_buf.len:%d", send_buf.base, send_buf.len);
+	// if (!send_buf.base)
+	// 	log_e("msg type \"%s\": can't find callback", msg->type);
+	// if (send_buf.base && send_buf.len > 0)
+	// 	send_msg(client, &send_buf);
+	// log_();
+
+	for (int i = 0; i < sizeof(msg_call_array) / sizeof(msg_call_array[0]); i++)
 	{
-		log("msg->type=%d msg_cb_array[%d].type=%s", msg->type, i, msg_cb_array[i].type);
-		if (!strcmp(msg_cb_array[i].type, msg->type))
+		if (!strcmp(msg_call_array[i].type, msg->type))
 		{
-			send_buf = msg_cb_array[i].cb(client, msg);
+			log("msg->type=%d msg_call_array[%d].type=%s", msg->type, i, msg_call_array[i].type);
+			req.data = (void *) &msg;
+			uv_queue_work(uv_default_loop(), &req, msg_call_array[i].cb, msg_call_array[i].after_cb);
 			log_s(send_buf.base);
 			break;
 		}
 	}
-	log("send_buf.base:%p send_buf.len:%d", send_buf.base, send_buf.len);
-	if (!send_buf.base)
-		log_e("msg type \"%s\": can't find callback", msg->type);
-	if (send_buf.base && send_buf.len > 0)
-		send_msg(client, &send_buf);
-	log_();
+
+	FREE(send_buf.base);
 }
 
-uv_buf_t msg_keyngreq_cb(elink_client_ctx *client, elink_msg_t *msg)
+void msg_keepalive_call(uv_work_t* req)
 {
+
+}
+
+void msg_keepalive_cb(uv_work_t* req)
+{
+
+}
+
+void msg_keepalive_after_cb(uv_work_t* req,int status)
+{
+
+}
+
+void msg_keyngreq_call(uv_work_t* req)
+{
+
+}
+
+void msg_keyngreq_cb(uv_work_t* req)
+{
+	elink_msg_t *msg = (elink_msg_t*)req->data;
 	char *send_data = NULL;
 	cJSON *send_json = cJSON_CreateObject();
 	cJSON_AddStringToObject(send_json, "type", "keyngack");
@@ -245,16 +313,28 @@ uv_buf_t msg_keyngreq_cb(elink_client_ctx *client, elink_msg_t *msg)
 	send_data = cJSON_Print(send_json);
 	cJSON_Delete(send_json);
 	// log_s(send_data);
-	return uv_buf_init(send_data, strlen(send_data));
-	// send_msg(client,send_data,strlen(send_data));
+
+	// return uv_buf_init(send_data, strlen(send_data));
+	FREE(send_data);
 }
 
-uv_buf_t msg_dh_cb(elink_client_ctx *client, elink_msg_t *msg)
+void msg_keyngreq_after_cb(uv_work_t* req,int status)
 {
-	elink_server_ctx *server = elink_get_server_ctx();
+
+}
+
+void msg_dh_call(uv_work_t* req)
+{
+
+}
+
+void msg_dh_cb(uv_work_t* req)
+{
+	elink_server_ctx *server = get_elink_server_ctx();
 	char *send_data = NULL;
 	cJSON *rcev_obj_data = NULL;
 	char *client_pubkey = NULL, *client_dh_p = NULL, *client_dh_g = NULL;
+	elink_msg_t *msg = (elink_msg_t*)req->data;
 
 	ok(msg->json != NULL);
 	rcev_obj_data = cJSON_GetObjectItem(msg->json, "data");
@@ -262,13 +342,13 @@ uv_buf_t msg_dh_cb(elink_client_ctx *client, elink_msg_t *msg)
 	client_pubkey = json_get_str(rcev_obj_data, "dh_key");
 	client_dh_p = json_get_str(rcev_obj_data, "dh_p");
 	client_dh_g = json_get_str(rcev_obj_data, "dh_g");
-	client->keys.dh_pubkey.base = strdup(client_pubkey);
-	client->keys.dh_p.base = strdup(client_dh_p);
-	client->keys.dh_g.base = strdup(client_dh_g);
+	msg->client_ctx->keys.dh_pubkey.base = strdup(client_pubkey);
+	msg->client_ctx->keys.dh_p.base = strdup(client_dh_p);
+	msg->client_ctx->keys.dh_g.base = strdup(client_dh_g);
 
-	log_s(client->keys.dh_pubkey.base);
-	log_s(client->keys.dh_p.base);
-	log_s(client->keys.dh_g.base);
+	log_s(msg->client_ctx->keys.dh_pubkey.base);
+	log_s(msg->client_ctx->keys.dh_p.base);
+	log_s(msg->client_ctx->keys.dh_g.base);
 
 	cJSON *send_json = cJSON_CreateObject();
 	cJSON *send_obj_data = cJSON_CreateObject();
@@ -277,16 +357,25 @@ uv_buf_t msg_dh_cb(elink_client_ctx *client, elink_msg_t *msg)
 	cJSON_AddStringToObject(send_json, "mac", msg->mac);
 	cJSON_AddNumberToObject(send_json, "sequence", msg->seq);
 
-	cJSON_AddStringToObject(send_obj_data, "dh_key", client->keys.dh_pubkey.base);
-	cJSON_AddStringToObject(send_obj_data, "dh_p", client->keys.dh_p.base);
-	cJSON_AddStringToObject(send_obj_data, "dh_g", client->keys.dh_g.base);
+	cJSON_AddStringToObject(send_obj_data, "dh_key", msg->client_ctx->keys.dh_pubkey.base);
+	cJSON_AddStringToObject(send_obj_data, "dh_p", msg->client_ctx->keys.dh_p.base);
+	cJSON_AddStringToObject(send_obj_data, "dh_g", msg->client_ctx->keys.dh_g.base);
 	cJSON_AddItemToObject(send_json, "data", send_obj_data);
 	send_data = cJSON_Print(send_json);
 	// log_s(send_data);
-	return uv_buf_init(send_data, strlen(send_data));
 	// send_msg(client,send_data,strlen(send_data));
+
+	// return uv_buf_init(send_data, strlen(send_data));
+	cJSON_Delete(rcev_obj_data);
+	cJSON_Delete(send_json);
+	cJSON_Delete(send_obj_data);
+	FREE(send_data);
+	FREE(client_pubkey);
+	FREE(client_dh_p);
+	FREE(client_dh_g);
 }
 
-uv_buf_t msg_keepalive_cb(elink_client_ctx *client, elink_msg_t *msg)
+void msg_dh_after_cb(uv_work_t* req,int status)
 {
+
 }

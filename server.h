@@ -7,6 +7,16 @@
 // #define CONTAINER_OF(ptr, type, field)                                        \
 //   ((type *) ((char *) (ptr) - ((char *) &((type *) 0)->field)))
 
+#define FREE(x)        \
+    do                 \
+    {                  \
+        if (x != NULL) \
+        {              \
+            free(x);   \
+            x = NULL;  \
+        }              \
+    } while (0);
+
 struct elink_client_ctx;
 
 typedef struct
@@ -27,36 +37,34 @@ typedef struct
 
 typedef struct
 {
-  uv_loop_t *loop;
   uv_tcp_t tcp_handle;
   int flag;
-  char *ip;
   char *name;
-  struct sockaddr_in addr;
+  char *ip;
+  char *mac;
+  char *gw;
   struct list_head *client_list;
-  struct list_head *msg_list;
+  struct list_head msg_list;
   keys_t keys;
 } elink_server_ctx;
 
 typedef struct
 {
-  uv_loop_t *loop;
   uv_tcp_t tcp_handle;
   int flag;
   char *name;
-  char *gw;
   char *ip;
   char *mac;
+  char *gw;
   uv_buf_t *recv_buf;
   // uv_buf_t *send_buf;
   keys_t keys;
   struct list_head list;
-  elink_server_ctx *server;
-  struct list_head *msg_list;
+  // elink_server_ctx *server;
+  struct list_head msg_list;
 } elink_client_ctx;
 
-// void init_server(elink_server_ctx *ctx,server_config_t *config);
-elink_server_ctx *elink_get_server_ctx(void);
+elink_server_ctx *get_elink_server_ctx(void);
 // elink_client_ctx *client_ctx_alloc(void);
 void on_write(uv_write_t *req, int status);
 

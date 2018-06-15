@@ -18,6 +18,7 @@
 #include <openssl/md5.h>
 
 #include "elink.h"
+#include "server.h"
 #include "log.h"
 
 int _do_aes_cbc_crypt(unsigned char *in, int inlen, unsigned char **out, int *outlen, unsigned char *key, int do_encrypt)

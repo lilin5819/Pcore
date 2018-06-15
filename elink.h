@@ -19,16 +19,6 @@ typedef struct ELINK_HEADER
 } ELINK_HEADER_STRU;
 #pragma pack()
 
-#define FREE(x)        \
-    do                 \
-    {                  \
-        if (x != NULL) \
-        {              \
-            free(x);   \
-            x = NULL;  \
-        }              \
-    } while (0);
-
 #define ELINK_MAGIC 0x3f721fb5
 #define ELINK_MAGIC_LEN 4
 #define ELINK_CONTENT_LEN 4
