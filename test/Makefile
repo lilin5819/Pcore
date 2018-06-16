@@ -1,6 +1,6 @@
+CFLAGS = -I../cjson
 
-
-all:cJSON.o test_cjson.o
+all:../cjson/cJSON.o test_cjson.o
 	gcc -o json $^ -lm
 
 clean:

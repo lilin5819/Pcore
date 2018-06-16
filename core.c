@@ -5,19 +5,6 @@
 
 #define DEFAULT_BACKLOG 128
 
-typedef struct
-{
-    elink_net_t net;
-    elink_server_ctx *server;
-    elink_client_ctx *client;
-    uv_loop_t *loop;
-    uv_tcp_t *tcp_handle;
-    uv_idle_t idle_handle;
-    uv_signal_t signal_handle;
-    uv_check_t check_handle;
-    uv_timer_t timer_handle;
-    int flag;
-} elink_ctx;
 
 elink_ctx *g_elink_ctx = NULL;
 elink_server_ctx *g_server_ctx = NULL;
@@ -71,16 +58,22 @@ static void close_cb(uv_handle_t *handle)
 
 static void timer_cb(uv_timer_t *handle)
 {
-    // log_();
-    //   uv_close((uv_handle_t*) &idle_handle, close_cb);
-    //   uv_close((uv_handle_t*) &timer_handle, close_cb);
-    // uv_timer_set_repeat(&timer_handle,20);
-    //   log_lu(uv_now(uv_default_loop()));
+
+}
+
+elink_ctx *get_elink_ctx(void)
+{
+    return g_elink_ctx;
 }
 
 elink_server_ctx *get_elink_server_ctx(void)
 {
     return g_elink_ctx->server;
+}
+
+elink_client_ctx *get_elink_client_ctx(void)
+{
+    return g_elink_ctx->client;
 }
 
 void get_if_ip(char *ifname) {
@@ -117,12 +110,11 @@ void read_alloc_cb(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf)
 {
     elink_client_ctx *client = container_of(handle, elink_client_ctx, tcp_handle);
     log_();
-    log_s(client->name);
-    buf->base = (char *)malloc(suggested_size);
-    buf->len = suggested_size;
+    *buf = uv_buf_init((char*) malloc(suggested_size), suggested_size);
+    // log_s(client->name);
     client->recv_buf = buf;
-    log_p(client->recv_buf->base);
-    log_d(client->recv_buf->len);
+    // log_p(client->recv_buf->base);
+    // log_d(client->recv_buf->len);
 }
 
 void on_write(uv_write_t *req, int status)
@@ -135,20 +127,24 @@ void on_write(uv_write_t *req, int status)
     free(req);
 }
 
-void on_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf)
+void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
 {
-    elink_client_ctx *client_ctx = container_of(client, elink_client_ctx, tcp_handle);
+#ifndef CONFIG_SERVER
+    elink_client_ctx *ctx = container_of(stream, elink_client_ctx, tcp_handle);
+#else
+    elink_server_ctx *ctx = container_of(stream, elink_server_ctx, tcp_handle);
+#endif
     uv_buf_t recved_buf;
-    ok(client_ctx != NULL);
+    ok(ctx != NULL);
     log_d(nread);
     // log_s(g_server_ctx->name);
-    log_s(client_ctx->name);
+    log_s(ctx->name);
 
     if (nread < 0)
     {
         if (nread != UV_EOF)
             log("Read error %s ,close it", uv_err_name(nread));
-        uv_close((uv_handle_t *)client, NULL);
+        uv_close((uv_handle_t *)stream, NULL);
         log_e("close client");
     }
     else if (nread > 0)
@@ -157,7 +153,9 @@ void on_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf)
         // log_s(buf->base+ELINK_HEADER_LEN);
         recved_buf.base = buf->base;
         recved_buf.len = nread;
-        recved_handle(client, &recved_buf);
+#ifdef CONFIG_MSG
+        recved_handle(stream, &recved_buf);
+#endif
     }
 
     if (buf->base)
@@ -171,29 +169,31 @@ void client_ctx_free(elink_client_ctx *client_ctx)
         return;
     if(client_ctx->list.next && client_ctx->list.prev)
         list_del(&client_ctx->list);
+#ifdef CONFIG_MSG
     FREE(client_ctx->name);
     FREE(client_ctx->ip);
     FREE(client_ctx->mac);
     FREE(client_ctx);
     msg_list_free(&client_ctx->msg_list);
+#endif
 }
 
 elink_client_ctx *client_ctx_alloc(void)
 {
-    elink_client_ctx *client_ctx = (elink_client_ctx *)malloc(sizeof(elink_client_ctx));
-    ok(client_ctx != NULL);
-    if (!client_ctx)
+    elink_client_ctx *client = (elink_client_ctx *)malloc(sizeof(elink_client_ctx));
+    ok(client != NULL);
+    if (!client)
         goto error;
-    memset(client_ctx, 0, sizeof(elink_client_ctx));
-    // client_ctx->tcp_handle = tcp_handle;
-    client_ctx->name = strdup("client");
-    INIT_LIST_HEAD(&client_ctx->list);
-    // log_s(client_ctx->name);
+    memset(client, 0, sizeof(*client));
+    // client->tcp_handle = tcp_handle;
+    client->name = strdup("client");
+    INIT_LIST_HEAD(&client->list);
+    // log_s(client->name);
 
-    return client_ctx;
+    return client;
 
 error:
-    client_ctx_free(client_ctx);
+    client_ctx_free(client);
     return NULL;
 }
 
@@ -275,8 +275,10 @@ int main(int argc, char const *argv[])
         .tcp_handle = &server_ctx.tcp_handle,
     };
     INIT_LIST_HEAD(&client_ctx.list);
+#ifdef CONFIG_MSG
     INIT_LIST_HEAD(&client_ctx.msg_list);
     INIT_LIST_HEAD(&server_ctx.msg_list);
+#endif
     g_elink_ctx = &elink;
     g_server_ctx = &server_ctx;
     g_client_list = &client_ctx.list;
