@@ -1,10 +1,10 @@
-#include "server.h"
-#include "elink.h"
-#include "msg.h"
+#include "core.h"
 #include "log.h"
 
-#define DEFAULT_BACKLOG 128
-
+#ifdef CONFIG_MSG
+#include "msg.h"
+#endif
+static int online = 0;
 
 elink_ctx *g_elink_ctx = NULL;
 elink_server_ctx *g_server_ctx = NULL;
@@ -12,11 +12,124 @@ struct list_head *g_client_list = NULL;
 
 LOG_INIT("elink_server");
 
-struct list_head *get_client_list(void)
+elink_ctx *get_elink_ctx(void)
 {
-	log_();
-	// INIT_LIST_HEAD(&g_client_list);
-	return g_elink_ctx->server->client_list;
+    return g_elink_ctx;
+}
+
+elink_server_ctx *get_elink_server_ctx(void)
+{
+    return &g_elink_ctx->server;
+}
+
+elink_client_ctx *get_elink_client_ctx(void)
+{
+    return &g_elink_ctx->client;
+}
+
+char *get_if_ipstr(char *ifname) 
+{
+    char ipstr[32] = {0};
+    uv_interface_address_t *info;
+    int count, i;
+
+    uv_interface_addresses(&info, &count);
+    i = count;
+
+    while (i--) {
+        uv_interface_address_t interface = info[i];
+
+        if(!strcmp(interface.name,ifname) && (interface.address.address4.sin_family == AF_INET)){
+            uv_ip4_name(&interface.address.address4, ipstr, sizeof(ipstr));
+            // log_s(ipstr);
+            return strdup(ipstr);
+        }
+    }
+
+    uv_free_interface_addresses(info, count);
+    return NULL;
+}
+
+char *get_if_macstr(char *ifname) 
+{
+    char macstr[32] = {0};
+    uv_interface_address_t *info;
+    int count, i;
+
+    uv_interface_addresses(&info, &count);
+    i = count;
+
+    while (i--) {
+        uv_interface_address_t interface = info[i];
+
+        if(!strcmp(interface.name,ifname) && (interface.address.address4.sin_family == AF_INET)){
+            sprintf(macstr,"%02X%02X%02X%02X%02X%02X",
+            interface.phys_addr[0]&0xff,interface.phys_addr[1]&0xff,interface.phys_addr[2]&0xff,interface.phys_addr[3]&0xff,interface.phys_addr[4]&0xff,interface.phys_addr[5]&0xff);
+            return strdup(macstr);
+        }
+    }
+
+    uv_free_interface_addresses(info, count);
+    return NULL;
+}
+
+char *get_gw(void)
+{
+    FILE *f;
+    char line[100] , *p , *c, *g, *saveptr;
+
+    f = fopen("/proc/net/route" , "r");
+
+    while(fgets(line , 100 , f))
+    {
+        p = strtok_r(line , " \t", &saveptr);
+        c = strtok_r(NULL , " \t", &saveptr);
+        g = strtok_r(NULL , " \t", &saveptr);
+
+        if(p!=NULL && c!=NULL)
+        {
+            if(strcmp(c , "00000000") == 0)
+            {
+                if (g)
+                {
+                    char *pend;
+                    int ng=strtol(g,&pend,16);
+                    struct in_addr addr;
+                    addr.s_addr=ng;
+                    return strdup(inet_ntoa(addr));
+                }
+                break;
+            }
+        }
+    }
+
+    fclose(f);
+    return NULL;
+}
+
+void on_client_mode_connect(uv_connect_t *conn, int status)
+{
+    elink_client_ctx *client = container_of(conn, elink_client_ctx, conn);
+
+    if (status < 0)
+    {
+        log("New connection error %s", uv_strerror(status));
+        // free(conn);
+        memset(conn,0,sizeof(*conn));
+        uv_close((uv_handle_t *)&client->tcp_handle,close_cb);
+        client->online = 0;
+        return;
+    }
+    // log_();
+    client->online = 1;
+    // uv_timer_init(uv_default_loop(),);
+#ifdef CONFIG_MSG
+    msg_start_call(client);
+#endif
+
+    log_d(client->online);
+
+    return;
 }
 
 static void close_walk_cb(uv_handle_t *handle, void *arg)
@@ -51,59 +164,39 @@ static void check_cb(uv_check_t *handle)
     // log_();
 }
 
-static void close_cb(uv_handle_t *handle)
+void close_cb(uv_handle_t *handle)
 {
     log_();
 }
 
-static void timer_cb(uv_timer_t *handle)
+static void timer_netcheck_cb(uv_timer_t *handle)
 {
+    elink_ctx *elink = container_of(handle, elink_ctx, timer_netcheck_handle);
+    if(elink->cfg.mode == ELINK_SERVER_MODE) return;
 
-}
+    char * ipstr = get_if_ipstr("wlan0");
+    char * macstr = get_if_macstr("wlan0");
+    char * gw = get_gw();
 
-elink_ctx *get_elink_ctx(void)
-{
-    return g_elink_ctx;
-}
-
-elink_server_ctx *get_elink_server_ctx(void)
-{
-    return g_elink_ctx->server;
-}
-
-elink_client_ctx *get_elink_client_ctx(void)
-{
-    return g_elink_ctx->client;
-}
-
-void get_if_ip(char *ifname) {
-    char buf[512];
-    uv_interface_address_t *info;
-    int count, i;
-
-    uv_interface_addresses(&info, &count);
-    i = count;
-
-    printf("Number of interfaces: %d\n", count);
-    while (i--) {
-        uv_interface_address_t interface = info[i];
-
-        printf("Name: %s\n", interface.name);
-        printf("Internal? %s\n", interface.is_internal ? "Yes" : "No");
-        
-        if (interface.address.address4.sin_family == AF_INET) {
-            uv_ip4_name(&interface.address.address4, buf, sizeof(buf));
-            printf("IPv4 address: %s\n", buf);
-        }
-        else if (interface.address.address4.sin_family == AF_INET6) {
-            uv_ip6_name(&interface.address.address6, buf, sizeof(buf));
-            printf("IPv6 address: %s\n", buf);
-        }
-
-        printf("\n");
+    if(!ipstr && elink->client.online == 1){
+        uv_close((uv_handle_t*)&elink->client.tcp_handle,close_cb);
+        elink->client.online = 0;
+        return;
     }
+    if(!gw || elink->client.online == 1)
+        return;
+    log_s(ipstr);
+    log_s(gw);
+    elink->client.online = 1;
+    elink->client.ip = ipstr;
+    elink->client.mac = macstr;
+    ok(0 == uv_tcp_init(uv_default_loop(), &elink->client.tcp_handle));
+    ok(0 == uv_ip4_addr(gw, ELINK_SERVER_PORT, &elink->client.addr));
+    ok(0 == uv_tcp_connect(&elink->client.conn,&elink->client.tcp_handle,(struct sockaddr *)&elink->client.addr,on_client_mode_connect));
 
-    uv_free_interface_addresses(info, count);
+    FREE(ipstr);
+    FREE(macstr);
+    FREE(gw);
 }
 
 void read_alloc_cb(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf)
@@ -111,55 +204,40 @@ void read_alloc_cb(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf)
     elink_client_ctx *client = container_of(handle, elink_client_ctx, tcp_handle);
     log_();
     *buf = uv_buf_init((char*) malloc(suggested_size), suggested_size);
-    // log_s(client->name);
     client->recv_buf = buf;
-    // log_p(client->recv_buf->base);
-    // log_d(client->recv_buf->len);
 }
 
-void on_write(uv_write_t *req, int status)
+void read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
 {
-    log_();
-    if (status)
-    {
-        log("Write error %s", uv_strerror(status));
-    }
-    free(req);
-}
-
-void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
-{
-#ifndef CONFIG_SERVER
+#if CONFIG_SERVER
     elink_client_ctx *ctx = container_of(stream, elink_client_ctx, tcp_handle);
+    log_s(ctx->name);   //will print client
 #else
     elink_server_ctx *ctx = container_of(stream, elink_server_ctx, tcp_handle);
+    log_s(ctx->name);   //will print server
 #endif
     uv_buf_t recved_buf;
     ok(ctx != NULL);
     log_d(nread);
     // log_s(g_server_ctx->name);
-    log_s(ctx->name);
 
     if (nread < 0)
     {
         if (nread != UV_EOF)
             log("Read error %s ,close it", uv_err_name(nread));
-        uv_close((uv_handle_t *)stream, NULL);
+        uv_close((uv_handle_t *)stream, close_cb);
         log_e("close client");
     }
     else if (nread > 0)
     {
-        // log_p(buf->base);
-        // log_s(buf->base+ELINK_HEADER_LEN);
         recved_buf.base = buf->base;
         recved_buf.len = nread;
 #ifdef CONFIG_MSG
-        recved_handle(stream, &recved_buf);
+        data_recved_handle(stream, &recved_buf);
 #endif
     }
 
-    if (buf->base)
-        free(buf->base);
+    free(buf->base);
 }
 
 void client_ctx_free(elink_client_ctx *client_ctx)
@@ -169,26 +247,22 @@ void client_ctx_free(elink_client_ctx *client_ctx)
         return;
     if(client_ctx->list.next && client_ctx->list.prev)
         list_del(&client_ctx->list);
-#ifdef CONFIG_MSG
     FREE(client_ctx->name);
-    FREE(client_ctx->ip);
-    FREE(client_ctx->mac);
     FREE(client_ctx);
-    msg_list_free(&client_ctx->msg_list);
-#endif
 }
 
 elink_client_ctx *client_ctx_alloc(void)
 {
+    log_();
     elink_client_ctx *client = (elink_client_ctx *)malloc(sizeof(elink_client_ctx));
     ok(client != NULL);
     if (!client)
         goto error;
     memset(client, 0, sizeof(*client));
-    // client->tcp_handle = tcp_handle;
     client->name = strdup("client");
+    client->timestamp = uv_hrtime();
+    log_lu(client->timestamp);
     INIT_LIST_HEAD(&client->list);
-    // log_s(client->name);
 
     return client;
 
@@ -197,7 +271,7 @@ error:
     return NULL;
 }
 
-void on_new_connection(uv_stream_t *stream, int status)
+void on_server_mode_connect(uv_stream_t *stream, int status)
 {
     if (status < 0)
     {
@@ -207,98 +281,101 @@ void on_new_connection(uv_stream_t *stream, int status)
     elink_server_ctx *server = container_of(stream, elink_server_ctx, tcp_handle);
     ok(server != NULL);
     log_s(server->name);
-    // log_s(g_server_ctx->name);
-    // uv_tcp_t *client_tcp_handle = (uv_tcp_t*) malloc(sizeof(uv_tcp_t));
     elink_client_ctx *client = client_ctx_alloc();
     ok(client != NULL);
     if (!client)
         goto error;
-    list_add_tail(&client->list, server->client_list);
 
     uv_tcp_init(uv_default_loop(), &client->tcp_handle);
-    // uv_tcp_keepalive(client,1, 10*000);
     if (uv_accept(stream, (uv_stream_t *)&client->tcp_handle) == 0)
     {
         log_();
 
-        uv_read_start((uv_stream_t *)&client->tcp_handle, read_alloc_cb, on_read);
+        list_add_tail(&client->list, &server->client_list);
+        uv_read_start((uv_stream_t *)&client->tcp_handle, read_alloc_cb, read_cb);
     }
     else
     {
         log_();
-        uv_close((uv_handle_t *)&client->tcp_handle, NULL);
+        uv_close((uv_handle_t *)&client->tcp_handle, close_cb);
     }
     return;
 
 error:
-    uv_close((uv_handle_t *)&client->tcp_handle, NULL);
+    uv_close((uv_handle_t *)&client->tcp_handle, close_cb);
     client_ctx_free(client);
     return;
 }
 
-void init_server(elink_server_ctx *server, elink_net_t *net)
-{
-    struct sockaddr_in addr;
-    ok(0 == uv_tcp_init(uv_default_loop(), &server->tcp_handle));
-    ok(0 == uv_ip4_addr(net->ip, net->port, &addr));
-    ok(0 == uv_tcp_bind(&server->tcp_handle, (struct sockaddr *)&addr, 0));
-    ok(0 == uv_listen((uv_stream_t *)&server->tcp_handle, 10, on_new_connection));
-}
 
-void init_client(elink_client_ctx *client, elink_net_t *net)
+void elink_core_init(elink_ctx *elink)
 {
-    struct sockaddr_in addr;
-    ok(0 == uv_tcp_init(uv_default_loop(), &client->tcp_handle));
-    ok(0 == uv_ip4_addr(net->ip, net->port, &addr));
-    ok(0 == uv_tcp_bind(&client->tcp_handle, (struct sockaddr *)&addr, 0));
-    ok(0 == uv_listen((uv_stream_t *)&client->tcp_handle, 10, on_new_connection));
+    elink_server_ctx *server = &elink->server;
+    elink_client_ctx *client = &elink->client;
+    elink_cfg_t *cfg = &elink->cfg;
+
+    // ok(0 == uv_idle_init(uv_default_loop(), &elink->idle_handle));
+    // ok(0 == uv_idle_start(&elink->idle_handle, idle_cb));
+
+    ok(0 == uv_check_init(uv_default_loop(), &elink->check_handle));
+    ok(0 == uv_check_start(&elink->check_handle, check_cb));
+
+    ok(0 == uv_signal_init(uv_default_loop(), &elink->signal_handle));
+    ok(0 == uv_signal_start(&elink->signal_handle, signal_cb, SIGINT));
+
+    // ok(0 == uv_signal_start(&signal_handle, signal_cb,SIGPIPE));
+    ok(0 == uv_timer_init(uv_default_loop(), &elink->timer_netcheck_handle));
+    ok(0 == uv_timer_start(&elink->timer_netcheck_handle, timer_netcheck_cb, 1 * 1000, 1 * 1000));
+
+    if(cfg->mode == ELINK_SERVER_MODE){
+        ok(0 == uv_tcp_init(uv_default_loop(), &server->tcp_handle));
+        ok(0 == uv_ip4_addr(cfg->ip, cfg->port, &server->addr));
+        ok(0 == uv_tcp_bind(&server->tcp_handle, (struct sockaddr *)&server->addr, 0));
+        ok(0 == uv_listen((uv_stream_t *)&server->tcp_handle, cfg->backlog,on_server_mode_connect));
+    } else {
+        // // ok(0 == uv_ip4_addr(elink->cfg.ip, elink->cfg.port, &elink->client->addr));
+        // ok(0 == uv_tcp_init(uv_default_loop(), &elink->client->tcp_handle));
+        // ok(0 == uv_ip4_addr("192.168.101.1", 80, &elink->client->addr));
+        // ok(0 == uv_tcp_connect(&elink->client->conn,&elink->client->tcp_handle,(struct sockaddr *)&elink->client->addr,on_client_mode_connect));
+
+        // uv_timer_init(uv_default_loop(),);
+        // uv_timer_start()
+    }
 }
 
 int main(int argc, char const *argv[])
 {
-    elink_server_ctx server_ctx = {
-            .ip = "0.0.0.0",
-            .name = (char *)argv[0],
-        };
-    elink_client_ctx client_ctx = {
-            // .loop = uv_default_loop(),
-            .name = (char *)argv[0],
-        };
-
     elink_ctx elink = {
-        .net = {
-            .ip = "0.0.0.0",
+        .cfg = {
+            .ip = ELINK_SERVER_IP,
             .port = ELINK_SERVER_PORT,
+            .backlog = DEFAULT_BACKLOG,
+            .mode = ELINK_MODE,
+            .mode_name = ELINK_MODE_NAME,
         },
-        .server = &server_ctx,
-        .client = &client_ctx,
-        .tcp_handle = &server_ctx.tcp_handle,
+        .server = {
+            //  .ip = ELINK_SERVER_IP,
+            .name = (char *)argv[0],
+        },
+        .client = {
+            .name = (char *)argv[0],
+        },
+        // .tcp_handle = &server_ctx.tcp_handle,
     };
-    INIT_LIST_HEAD(&client_ctx.list);
-#ifdef CONFIG_MSG
-    INIT_LIST_HEAD(&client_ctx.msg_list);
-    INIT_LIST_HEAD(&server_ctx.msg_list);
-#endif
+    set_appname((char*)argv[0]);
+    INIT_LIST_HEAD(&elink.client.list);
+    INIT_LIST_HEAD(&elink.server.client_list);
+    list_add_tail(&elink.client.list,&elink.server.client_list);
+
     g_elink_ctx = &elink;
-    g_server_ctx = &server_ctx;
-    g_client_list = &client_ctx.list;
-    server_ctx.client_list = &client_ctx.list;
-    log("start_server");
+    g_server_ctx = &elink.server;
+    g_client_list = &elink.server.client_list;
+    // server_ctx.client_list = &elink.client.list;
+    log("start_elink");
+    log_s(elink.cfg.mode_name);
+    log_d(elink.cfg.mode);
 
-    ok(0 == uv_idle_init(uv_default_loop(), &elink.idle_handle));
-    ok(0 == uv_idle_start(&elink.idle_handle, idle_cb));
-
-    ok(0 == uv_check_init(uv_default_loop(), &elink.check_handle));
-    ok(0 == uv_check_start(&elink.check_handle, check_cb));
-
-    ok(0 == uv_signal_init(uv_default_loop(), &elink.signal_handle));
-    ok(0 == uv_signal_start(&elink.signal_handle, signal_cb, SIGINT));
-
-    // ok(0 == uv_signal_start(&signal_handle, signal_cb,SIGPIPE));
-    ok(0 == uv_timer_init(uv_default_loop(), &elink.timer_handle));
-    ok(0 == uv_timer_start(&elink.timer_handle, timer_cb, 1 * 1000, 5 * 1000));
-
-    init_server(elink.server, &elink.net);
+    elink_core_init(&elink);
 
     ok(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 

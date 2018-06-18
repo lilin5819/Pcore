@@ -13,11 +13,11 @@ CORE_LDFLAGS = -L/usr/lib/x86_64-linux-gnu -luv
 TARGET = elink_core
 
 # SRCS += msg.c crypto.c sds/sds.c cjson/cJSON.c
-# OBJS = $(subst .c,.o,$(SRCS))
 SRC_DIRS = . cjson sds
 SRCS = $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.c))
+OBJS = $(subst .c,.o,$(SRCS))
 
-CFLAGS = $(CORE_CFLAGS) -DCONFIG_MSG
+CFLAGS = $(CORE_CFLAGS)
 LDFLAGS = $(CORE_LDFLAGS) -lssl -lcrypto -lm
 ifeq ($(CONFIG_SERVER),y)
 TARGET += elink_server
@@ -27,17 +27,21 @@ ifeq ($(CONFIG_CLIENT),y)
 TARGET += elink_client
 endif
 
+ifeq ($(CONFIG_CLIENT),y)
+CFLAGS += -DCONFIG_MSG
+endif
+
 all:clean $(TARGET)
 	$(STRIP) $(TARGET)
 
 elink_server:$(SRCS)
-	$(CC) -o $@ $^ -DCONFIG_SERVER $(CFLAGS) $(LDFLAGS) 
+	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS) -DCONFIG_SERVER -DELINK_MODE_NAME=\"$@\" -DELINK_MODE=1 
 
 elink_client:$(SRCS)
-	$(CC) -o $@ $^ -DCONFIG_CLIENT $(CFLAGS) $(LDFLAGS) 
+	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS) -DCONFIG_CLIENT -DELINK_MODE_NAME=\"$@\" -DELINK_MODE=0
 
 elink_core:$(CORE_SRCS)
-	$(CC) -o $@ $^ $(CORE_CFLAGS) $(CORE_LDFLAGS)
+	$(CC) -o $@ $^ $(CORE_CFLAGS) $(CORE_LDFLAGS) -DELINK_MODE_NAME=\"$@\" -DELINK_MODE=0
 
 %.o:%.c
 	$(CC) -c -o $@ $< $(CFLAGS) $(LDFLAGS)

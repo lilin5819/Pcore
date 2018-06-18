@@ -63,15 +63,20 @@ typedef enum _COLOR_T
     _FLASH
 } COLOR_T;
 static char _COLOR[5][16] = {_GRE_STR, _RED_STR, _YEL_STR, _COLOR_END, _FLASH_STR};
-static char *_log_app = NULL;
 static char *_log_tag = NULL;
 
-const char *_get_appname(void);
+char *get_appname(void);
+void set_appname(char *appname);
 
-#define LOG_INIT(app)              \
-    const char *_get_appname(void) \
-    {                              \
-        return app;                \
+#define LOG_INIT(app)                \
+    char *_log_app = app;            \
+    char *get_appname(void)         \
+    {                                \
+        return _log_app;             \
+    }                                \
+    void set_appname(char *appname) \
+    {                                \
+        _log_app = appname;          \
     }
 
 static inline void log_base(FILE *fp, const char flag, const char *tag, const char *file, const char *fun, const int line, const char *fmt, ...)
@@ -81,7 +86,7 @@ static inline void log_base(FILE *fp, const char flag, const char *tag, const ch
     va_start(ap, fmt);
     vsnprintf(fmtbuf, sizeof(fmtbuf), fmt, ap);
     va_end(ap);
-    fprintf(fp, "[%s%s%s]", _COLOR[_YEL], _get_appname(), _COLOR[_END]);
+    fprintf(fp, "[%s%s%s]", _COLOR[_YEL], get_appname(), _COLOR[_END]);
     fprintf(fp, "[%-15s > %-15s > %3d]", file, fun, line);
     if (tag)
         fprintf(fp, "[%s%s%s%s]", _COLOR[flag & _FLASH], _COLOR[flag & _COLOR_MASK], tag, _COLOR[_END]);
