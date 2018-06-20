@@ -18,25 +18,23 @@
 #include <openssl/md5.h>
 
 #include "core.h"
-#include "msg.h"
+// #include "msg.h"
 #include "sds.h"
 #include "log.h"
 
 #define B64_ENCODE_LEN(_len)	((((_len) + 2) / 3) * 4 + 1)
 #define B64_DECODE_LEN(_len)	(((_len) / 4) * 3 + 1)
-// LOG_INIT("crypto");
 
 int gen_dh_param(sds p,sds g)
 {
 	log_();
-    DH *dh = NULL;
-    dh=DH_new();
-    DH_generate_parameters_ex(dh,128,DH_GENERATOR_2,NULL);   
-	DH_generate_key(dh);
-
-	sdssetlen(p,BN_bn2bin(dh->pub_key,p));
-	sdssetlen(g,BN_bn2bin(dh->pub_key,g));
+	DH *dh = DH_new();
+	size_t len_p = 0,len_g =0;
+    DH_generate_parameters_ex(dh,128,DH_GENERATOR_5,NULL);   
+	sdssetlen(p,BN_bn2bin(dh->p,p));
+	sdssetlen(g,BN_bn2bin(dh->g,g));
 	DH_free(dh);
+	log_();
 	return 0;
 }
 
@@ -45,12 +43,16 @@ int gen_dh_keypair(sds p,sds g,sds pubkey,sds privkey)
 	log_();
 	DH *dh = NULL;
 	dh = DH_new();
+	ok(dh != NULL);
 	dh->p = BN_bin2bn(p,sdslen(p),NULL);
 	dh->g = BN_bin2bn(g,sdslen(g),NULL);
+	ok(dh->p != NULL);
+	ok(dh->g != NULL);
 	DH_generate_key(dh);
 	sdssetlen(pubkey,BN_bn2bin(dh->pub_key,pubkey));
 	sdssetlen(privkey,BN_bn2bin(dh->priv_key,privkey));
 	DH_free(dh);
+	log_();
 	return 0;
 }
 
@@ -60,13 +62,19 @@ int gen_dh_sharekey(sds p,sds g,sds privkey,sds peer_pubkey,sds sharekey)
 	DH *dh = NULL;
 	int sharelen = 0;
 	BIGNUM *bn_peer_pubkey = NULL;
+	log_();
     dh = DH_new();
+	log_();
 	dh->p = BN_bin2bn(p,sdslen(p),NULL);
+	log_();
 	dh->g = BN_bin2bn(g,sdslen(g),NULL);
+	log_();
 	dh->priv_key = BN_bin2bn(privkey,sdslen(privkey),NULL);
-
+	log_();
 	bn_peer_pubkey = BN_bin2bn(peer_pubkey,sdslen(peer_pubkey),NULL);
+	log_();
 	sdssetlen(sharekey,DH_compute_key(sharekey,bn_peer_pubkey,dh));
+	log_();
 	log_mem(sharekey,sdslen(sharekey));
 	BN_free(bn_peer_pubkey);
 	DH_free(dh);
@@ -191,7 +199,16 @@ sds b64_block(sds in)
     sdssetlen(out,EVP_EncodeBlock((unsigned char*)out, (const unsigned char*)in, sdslen(in)));
 	return out;
 }
+
 #if 0
+LOG_INIT("crypto");
+
+#define log_sds_h(x)        \
+    do                 \
+    {                  \
+        if (x != NULL) \
+            log_mem(x,sdslen(x));   \
+    } while (0);
 
 int main(int argc, char const *argv[])
 {
@@ -199,8 +216,8 @@ int main(int argc, char const *argv[])
     char *dh_g = "BQ==";
     // char *dh_pubkey = "dWnMjwtSDz20UsixXTQfFA==";
 
-	sds s_p = sdsnewlen(dh_p,128);
-	sds s_g = sdsnewlen(dh_g,128);
+	sds s_p = sdsnewlen("",128);
+	sds s_g = sdsnewlen("",128);
 	// sds s_pubkey = sdsnewlen(dh_pubkey,128);
 	sds s_pubkey = sdsnewlen("",128);
 	sds s_privkey = sdsnewlen("",128);
@@ -209,30 +226,27 @@ int main(int argc, char const *argv[])
 	sds s_me_pubkey = sdsnewlen("",128);
 	sds s_me_privkey = sdsnewlen("",128);
 	sds s_me_sharekey = sdsnewlen("",128);
+	log_();
+	gen_dh_param(s_p,s_g);
 
-	log_s(s_p);
-	log_s(s_g);
+	// log_d(sdslen(s_p));
+	// log_d(sdslen(s_g));
+	// log_d(sdslen(s_pubkey));
 
-	log_d(sdslen(s_p));
-	log_d(sdslen(s_g));
-	log_d(sdslen(s_pubkey));
+	// sdsupdatelen(s_p);
+	// sdsupdatelen(s_g);
+	// sdsupdatelen(s_pubkey);
 
-	sdsupdatelen(s_p);
-	sdsupdatelen(s_g);
-	sdsupdatelen(s_pubkey);
+	// log_d(sdslen(s_p));
+	// log_d(sdslen(s_g));
+	// log_d(sdslen(s_pubkey));
 
-	log_d(sdslen(s_p));
-	log_d(sdslen(s_g));
-	log_d(sdslen(s_pubkey));
+	// s_p = unb64_block(s_p);
+	// s_g = unb64_block(s_g);
 
-	log_s(s_p);
-	log_s(s_g);
-
-	s_p = unb64_block(s_p);
-	s_g = unb64_block(s_g);
+	log_sds_h(s_p);
+	log_sds_h(s_g);
 	// s_pubkey = decode_b64(s_pubkey);
-	log_mem(s_p,sdslen(s_p));
-	log_mem(s_g,sdslen(s_g));
 
 	gen_dh_keypair(s_p,s_g,s_pubkey,s_privkey);
 	gen_dh_keypair(s_p,s_g,s_me_pubkey,s_me_privkey);

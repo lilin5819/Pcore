@@ -10,7 +10,11 @@ elink_ctx *g_elink_ctx = NULL;
 elink_server_ctx *g_server_ctx = NULL;
 struct list_head *g_client_list = NULL;
 
-LOG_INIT("elink_server");
+
+int get_elink_mode(void)
+{
+    return g_elink_ctx->cfg.mode;
+}
 
 elink_ctx *get_elink_ctx(void)
 {
@@ -79,13 +83,11 @@ char *get_gw(void)
     char line[100] , *p , *c, *g, *saveptr;
 
     f = fopen("/proc/net/route" , "r");
-
     while(fgets(line , 100 , f))
     {
         p = strtok_r(line , " \t", &saveptr);
         c = strtok_r(NULL , " \t", &saveptr);
         g = strtok_r(NULL , " \t", &saveptr);
-
         if(p!=NULL && c!=NULL)
         {
             if(strcmp(c , "00000000") == 0)
@@ -126,9 +128,8 @@ void on_client_mode_connect(uv_connect_t *conn, int status)
 #ifdef CONFIG_MSG
     msg_start_call(client);
 #endif
-
+	uv_read_start((uv_stream_t *)&client->tcp_handle, read_alloc_cb, read_cb);
     log_d(client->online);
-
     return;
 }
 
@@ -185,13 +186,14 @@ static void timer_netcheck_cb(uv_timer_t *handle)
     }
     if(!gw || elink->client.online == 1)
         return;
-    log_s(ipstr);
-    log_s(gw);
+    // log_s(ipstr);
+    // log_s(gw);
     elink->client.online = 1;
-    elink->client.ip = ipstr;
-    elink->client.mac = macstr;
+    elink->client.ip = "127.0.0.1";
+    elink->client.mac = strdup(macstr);
+    elink->client.gw = "127.0.0.1";
     ok(0 == uv_tcp_init(uv_default_loop(), &elink->client.tcp_handle));
-    ok(0 == uv_ip4_addr(gw, ELINK_SERVER_PORT, &elink->client.addr));
+    ok(0 == uv_ip4_addr("127.0.0.1", ELINK_SERVER_PORT, &elink->client.addr));
     ok(0 == uv_tcp_connect(&elink->client.conn,&elink->client.tcp_handle,(struct sockaddr *)&elink->client.addr,on_client_mode_connect));
 
     FREE(ipstr);
@@ -209,13 +211,18 @@ void read_alloc_cb(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf)
 
 void read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
 {
-#if CONFIG_SERVER
+    log_();
     elink_client_ctx *ctx = container_of(stream, elink_client_ctx, tcp_handle);
-    log_s(ctx->name);   //will print client
-#else
-    elink_server_ctx *ctx = container_of(stream, elink_server_ctx, tcp_handle);
-    log_s(ctx->name);   //will print server
-#endif
+    if(&ctx->list == g_client_list){
+        log("this is elink core client");
+        log_s(ctx->name);   //will print client
+        log_s(ctx->gw);   //will print client
+        log_s(ctx->mac);   //will print client
+        log_s(ctx->ip);   //will print client
+    }else{
+        log("another client");
+    }
+
     uv_buf_t recved_buf;
     ok(ctx != NULL);
     log_d(nread);
@@ -302,6 +309,7 @@ void on_server_mode_connect(uv_stream_t *stream, int status)
     return;
 
 error:
+    log_e("close client");
     uv_close((uv_handle_t *)&client->tcp_handle, close_cb);
     client_ctx_free(client);
     return;
@@ -328,20 +336,21 @@ void elink_core_init(elink_ctx *elink)
     ok(0 == uv_timer_start(&elink->timer_netcheck_handle, timer_netcheck_cb, 1 * 1000, 1 * 1000));
 
     if(cfg->mode == ELINK_SERVER_MODE){
+        set_log_file("/var/elink_server.log");
+
+        log("elink in server mode");
         ok(0 == uv_tcp_init(uv_default_loop(), &server->tcp_handle));
         ok(0 == uv_ip4_addr(cfg->ip, cfg->port, &server->addr));
         ok(0 == uv_tcp_bind(&server->tcp_handle, (struct sockaddr *)&server->addr, 0));
         ok(0 == uv_listen((uv_stream_t *)&server->tcp_handle, cfg->backlog,on_server_mode_connect));
     } else {
-        // // ok(0 == uv_ip4_addr(elink->cfg.ip, elink->cfg.port, &elink->client->addr));
-        // ok(0 == uv_tcp_init(uv_default_loop(), &elink->client->tcp_handle));
-        // ok(0 == uv_ip4_addr("192.168.101.1", 80, &elink->client->addr));
-        // ok(0 == uv_tcp_connect(&elink->client->conn,&elink->client->tcp_handle,(struct sockaddr *)&elink->client->addr,on_client_mode_connect));
+        set_log_file("/var/elink_client.log");
 
-        // uv_timer_init(uv_default_loop(),);
-        // uv_timer_start()
+        log("elink in client mode , connect server in timer_netcheck");
     }
 }
+
+LOG_DEF();
 
 int main(int argc, char const *argv[])
 {
@@ -360,9 +369,8 @@ int main(int argc, char const *argv[])
         .client = {
             .name = (char *)argv[0],
         },
-        // .tcp_handle = &server_ctx.tcp_handle,
     };
-    set_appname((char*)argv[0]);
+    init_log((char*)argv[0]);
     INIT_LIST_HEAD(&elink.client.list);
     INIT_LIST_HEAD(&elink.server.client_list);
     list_add_tail(&elink.client.list,&elink.server.client_list);

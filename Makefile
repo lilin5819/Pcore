@@ -41,7 +41,7 @@ elink_client:$(SRCS)
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS) -DCONFIG_CLIENT -DELINK_MODE_NAME=\"$@\" -DELINK_MODE=0
 
 elink_core:$(CORE_SRCS)
-	$(CC) -o $@ $^ $(CORE_CFLAGS) $(CORE_LDFLAGS) -DELINK_MODE_NAME=\"$@\" -DELINK_MODE=0
+	$(CC) -o $@ $^ $(CORE_CFLAGS) $(CORE_LDFLAGS) -DELINK_MODE_NAME=\"$@\" -DELINK_MODE=1
 
 %.o:%.c
 	$(CC) -c -o $@ $< $(CFLAGS) $(LDFLAGS)

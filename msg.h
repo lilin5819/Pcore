@@ -81,12 +81,27 @@ typedef struct ELINK_HEADER
 #define SDS_FREE(x)        \
     do                 \
     {                  \
+            sdsfree(x);   \
+            x = NULL;  \
+    } while (0);
+
+#define JSON_FREE(x)        \
+    do                 \
+    {                  \
         if (x != NULL) \
         {              \
-            sdsfree(x);   \
+            cJSON_Delete(x);   \
             x = NULL;  \
         }              \
     } while (0);
+
+#define log_sds_h(x)        \
+    do                 \
+    {                  \
+        if (x != NULL) \
+            log_mem(x,sdslen(x));   \
+    } while (0);
+
 
 #ifdef CONFIG_MSG
 typedef struct keys_t {
@@ -130,16 +145,16 @@ typedef struct ap_info_t{
 }ap_info_t;
 
 typedef struct elink_msg_t{
-  sds type;
-	uv_work_t msg_req;
-	uv_write_t wr_req;
-  cJSON *json;
-  sds ret_type;
-  cJSON *ret_json;
+  sds call_type;
   uv_work_cb call;
 	uv_after_work_cb after_call;
+  sds cb_type;
   uv_work_cb cb;
 	uv_after_work_cb after_cb;
+	uv_work_t msg_req;
+	uv_write_t wr_req;
+  cJSON *call_json;
+  cJSON *cb_json;
   sds ip;
   sds mac;
   int seq;
@@ -150,19 +165,23 @@ typedef struct elink_msg_t{
 } elink_msg_t;
 
 typedef struct elink_session_ctx{
+  elink_client_ctx *client;
+  sds name;
+  int mode;
   sds mac;
   sds host;
   sds ip;
+  sds gw;
   uint32_t seq;
   model_info_t model_info;
-	uv_work_t msg_req;
-	uv_write_t wr_req;
+	// uv_work_t msg_req;
+	// uv_write_t wr_req;
 	uv_timer_t timer_call_handle;
 	uv_timer_t timer_keepalive_handle;
-  struct list_head call_list;
-  struct list_head waitack_list;
+  struct list_head call_list;               //客户端模式：待远程调用的消息
+  struct list_head waitack_list;            //客户端模式：远程调用完成，待接受回馈的消息
   struct list_head ap_list;
-  struct list_head msg_list;
+  struct list_head msg_list;                //服务器模式：接受和处理的消息
   keys_t keys;
 }elink_session_ctx;
 
@@ -170,7 +189,7 @@ struct list_head *get_msg_list(void);
 void msg_list_free(struct list_head *list);
 void msg_free(elink_msg_t *msg);
 
-void msg_add_call_to_list(elink_session_ctx * ctx,struct list_head *list,char *type);
+void msg_add_to_list(elink_session_ctx * ctx,struct list_head *list,char *type);
 
 void data_recved_handle(uv_stream_t *client,uv_buf_t *buf);
 void msg_start_call(elink_client_ctx *client);
@@ -183,7 +202,7 @@ char * json_get_str(cJSON *json,char *key);
 uv_buf_t elink_msg_pack(sds data);
 sds elink_msg_unpack(uv_buf_t *data);
 
-void msg_chk_after_call(uv_work_t* req,int status);
+void msg_after_call(uv_work_t* req,int status);
 void msg_ret_after_cb(uv_work_t* req,int status);
 
 void msg_keepalive_call(uv_work_t* req);

@@ -65,32 +65,41 @@ typedef enum _COLOR_T
 static char _COLOR[5][16] = {_GRE_STR, _RED_STR, _YEL_STR, _COLOR_END, _FLASH_STR};
 static char *_log_tag = NULL;
 
-char *get_appname(void);
-void set_appname(char *appname);
+char *get_log_name(void);
+void set_log_name(char *appname);
+    void set_log_file(char * file);
+// void set_log_devnull(void);
 
-#define LOG_INIT(app)                \
-    char *_log_app = app;            \
-    char *get_appname(void)         \
-    {                                \
-        return _log_app;             \
-    }                                \
-    void set_appname(char *appname) \
-    {                                \
-        _log_app = appname;          \
+#define LOG_DEF()                              \
+    char *_log_app = "";                          \
+    char *get_log_name(void)                       \
+    {                                              \
+        return _log_app;                           \
+    }                                              \
+    void init_log(char *appname)                   \
+    {                                              \
+        _log_app = appname;                        \
+    }                                              \
+    void set_log_file(char * file)                 \
+    {                                              \
+        stdout = freopen(file, "w+",stdout);       \
+        stderr = freopen(file, "w+",stderr);       \
     }
 
 static inline void log_base(FILE *fp, const char flag, const char *tag, const char *file, const char *fun, const int line, const char *fmt, ...)
 {
+    if(!fp) return;
     static char fmtbuf[1024];
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(fmtbuf, sizeof(fmtbuf), fmt, ap);
     va_end(ap);
-    fprintf(fp, "[%s%s%s]", _COLOR[_YEL], get_appname(), _COLOR[_END]);
-    fprintf(fp, "[%-15s > %-15s > %3d]", file, fun, line);
+    fprintf(fp, "[%s%s%s]", _COLOR[_YEL], get_log_name(), _COLOR[_END]);
+    fprintf(fp, "[%-10s > %-15s > %3d]", file, fun, line);
     if (tag)
         fprintf(fp, "[%s%s%s%s]", _COLOR[flag & _FLASH], _COLOR[flag & _COLOR_MASK], tag, _COLOR[_END]);
     fprintf(fp, "[%s%s%s%s]\n", _COLOR[flag & _FLASH], _COLOR[flag & _COLOR_MASK], fmtbuf, _COLOR[_END]);
+    fflush(fp);
 }
 
 #define log_line(fp, flag, tag, ...)                                            \

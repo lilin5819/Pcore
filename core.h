@@ -9,6 +9,7 @@
 
 
 #define ELINK_SERVER_MODE 1
+#define ELINK_CLIENT_MODE 0
 
 #define CONTAINER_OF(ptr, type, field)                                        \
   ((type *) ((char *) (ptr) - ((char *) &((type *) 0)->field)))
@@ -58,6 +59,7 @@ typedef struct elink_client_ctx
   char *name;
   char *mac;
   char *ip;
+  char *gw;
   uv_connect_t conn;
   int online;
   // uv_timer_t timer_conn;
@@ -103,6 +105,15 @@ elink_client_ctx *get_elink_client_ctx(void);
 void close_cb(uv_handle_t *handle);
 char *get_if_ipstr(char *ifname);
 char *get_if_macstr(char *ifname);
+int get_elink_mode(void);
+void read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf);
+void read_alloc_cb(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf);
+void msg_ack_cb(uv_work_t* req);
+void msg_dev_reg_call(uv_work_t* req);
+void msg_dev_reg_cb(uv_work_t* req);
+
+
+
 
 // void msg_start_call(elink_client_ctx *client);
 
