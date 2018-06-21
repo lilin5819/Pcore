@@ -166,18 +166,21 @@ typedef struct elink_msg_t{
 
 typedef struct elink_session_ctx{
   elink_client_ctx *client;
+  int sid;
   sds name;
   int mode;
   sds mac;
   sds host;
   sds ip;
   sds gw;
+  int dh_done;
   uint32_t seq;
   model_info_t model_info;
 	// uv_work_t msg_req;
 	// uv_write_t wr_req;
 	uv_timer_t timer_call_handle;
 	uv_timer_t timer_keepalive_handle;
+	uv_timer_t timer_call_ret_check_handle;
   struct list_head call_list;               //客户端模式：待远程调用的消息
   struct list_head waitack_list;            //客户端模式：远程调用完成，待接受回馈的消息
   struct list_head ap_list;
@@ -193,17 +196,22 @@ void msg_add_to_list(elink_session_ctx * ctx,struct list_head *list,char *type);
 
 void data_recved_handle(uv_stream_t *client,uv_buf_t *buf);
 void msg_start_call(elink_client_ctx *client);
+sds aes128_cmd(sds in, sds key, int do_encrypt);
+sds elink_msg_decrypto(sds data,sds sharekey);
+sds elink_msg_crypto(sds data,sds sharekey);
+
 
 void msg_cb_dispatch(elink_session_ctx * ctx,elink_msg_t *msg);
+void msg_call_ret_check(elink_session_ctx * ctx,elink_msg_t *msg);
 
 int json_get_int(cJSON *json,char *key);
 char * json_get_str(cJSON *json,char *key);
 
-uv_buf_t elink_msg_pack(sds data);
-sds elink_msg_unpack(uv_buf_t *data);
+sds elink_msg_pack(elink_session_ctx * ctx,sds data);
+sds elink_msg_unpack(elink_session_ctx * ctx,uv_buf_t *data);
 
-void msg_after_call(uv_work_t* req,int status);
-void msg_ret_after_cb(uv_work_t* req,int status);
+void msg_call_done(uv_work_t* req,int status);
+void msg_cb_done(uv_work_t* req,int status);
 
 void msg_keepalive_call(uv_work_t* req);
 void msg_keepalive_cb(uv_work_t* req);

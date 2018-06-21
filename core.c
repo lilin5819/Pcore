@@ -336,7 +336,7 @@ void elink_core_init(elink_ctx *elink)
     ok(0 == uv_timer_start(&elink->timer_netcheck_handle, timer_netcheck_cb, 1 * 1000, 1 * 1000));
 
     if(cfg->mode == ELINK_SERVER_MODE){
-        set_log_file("/var/elink_server.log");
+        // set_log_file("/var/elink_server.log");
 
         log("elink in server mode");
         ok(0 == uv_tcp_init(uv_default_loop(), &server->tcp_handle));
@@ -344,7 +344,7 @@ void elink_core_init(elink_ctx *elink)
         ok(0 == uv_tcp_bind(&server->tcp_handle, (struct sockaddr *)&server->addr, 0));
         ok(0 == uv_listen((uv_stream_t *)&server->tcp_handle, cfg->backlog,on_server_mode_connect));
     } else {
-        set_log_file("/var/elink_client.log");
+        // set_log_file("/var/elink_client.log");
 
         log("elink in client mode , connect server in timer_netcheck");
     }

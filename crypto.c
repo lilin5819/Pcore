@@ -28,6 +28,8 @@
 int gen_dh_param(sds p,sds g)
 {
 	log_();
+	sdsinclen(p,16);
+	sdsinclen(g,16);
 	DH *dh = DH_new();
 	size_t len_p = 0,len_g =0;
     DH_generate_parameters_ex(dh,128,DH_GENERATOR_5,NULL);   
@@ -42,6 +44,8 @@ int gen_dh_keypair(sds p,sds g,sds pubkey,sds privkey)
 {	
 	log_();
 	DH *dh = NULL;
+	sdsinclen(pubkey,16);
+	sdsinclen(privkey,16);
 	dh = DH_new();
 	ok(dh != NULL);
 	dh->p = BN_bin2bn(p,sdslen(p),NULL);
@@ -62,83 +66,77 @@ int gen_dh_sharekey(sds p,sds g,sds privkey,sds peer_pubkey,sds sharekey)
 	DH *dh = NULL;
 	int sharelen = 0;
 	BIGNUM *bn_peer_pubkey = NULL;
-	log_();
+	sdsinclen(sharekey,16);
     dh = DH_new();
-	log_();
 	dh->p = BN_bin2bn(p,sdslen(p),NULL);
-	log_();
 	dh->g = BN_bin2bn(g,sdslen(g),NULL);
-	log_();
 	dh->priv_key = BN_bin2bn(privkey,sdslen(privkey),NULL);
-	log_();
 	bn_peer_pubkey = BN_bin2bn(peer_pubkey,sdslen(peer_pubkey),NULL);
-	log_();
 	sdssetlen(sharekey,DH_compute_key(sharekey,bn_peer_pubkey,dh));
-	log_();
 	log_mem(sharekey,sdslen(sharekey));
 	BN_free(bn_peer_pubkey);
 	DH_free(dh);
+	log_();
 	return 0;
 }
 
-int _do_aes_cbc_crypt(unsigned char *in, int inlen, unsigned char **out, int *outlen, unsigned char *key, int do_encrypt)
+sds aes128_cmd(sds in, sds key, int do_encrypt)
 {
 	int tmplen = 0;
+	int outlen = 0;
 	unsigned char *buf = NULL;
 	unsigned char iv[EVP_MAX_IV_LENGTH] = {0};
-	EVP_CIPHER_CTX ctx;
+	EVP_CIPHER_CTX *ctx = NULL;
 
-	// #if ENABLE_AES_DEBUG
-	printf("%s from: ", do_encrypt ? "encrypt" : "decrypt");
-	log_mem(in, inlen);
-	// #endif
+	// log("%s from: ", do_encrypt ? "encrypt" : "decrypt");
+	// log_mem(in, sdslen(in));
 
-	/* make sure key size == 16 */
+	ctx = EVP_CIPHER_CTX_new();
+	EVP_CIPHER_CTX_init(ctx);
 
-	EVP_CIPHER_CTX_init(&ctx);
+	EVP_CipherInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv, do_encrypt);
 
-	EVP_CipherInit_ex(&ctx, EVP_aes_128_cbc(), NULL, key, iv, do_encrypt);
-
-	EVP_CIPHER_CTX_set_padding(&ctx, 0);
-
-	buf = calloc(1, inlen + 1);
+	EVP_CIPHER_CTX_set_padding(ctx, 0);
+	log_d(sdslen(in));
+	if(do_encrypt)
+		log_s(in);
+	buf = calloc(1, sdslen(in) + 1);
 
 	if (!buf)
 	{
-		log("%s: %s malloc %d failed", __func__, do_encrypt ? "encrypt" : "decrypt", inlen + 1);
-		return -1;
+		log("%s: %s malloc %d failed", __func__, do_encrypt ? "encrypt" : "decrypt", sdslen(in) + 1);
+		return NULL;
 	}
+	
 
-	if (EVP_CipherUpdate(&ctx, buf, outlen, in, inlen) == 0)
+	if (EVP_CipherUpdate(ctx, buf, &outlen, in, sdslen(in)) == 0)
 	{
 		log("aes_128_cbc %s failed: EVP_CipherUpdate", do_encrypt ? "encrypt" : "decrypt");
-		EVP_CIPHER_CTX_cleanup(&ctx);
+		EVP_CIPHER_CTX_cleanup(ctx);
 		FREE(buf);
-		return -1;
+		return NULL;
 	}
+	log_d(outlen);
 
-	//printf("outlen = %d", *outlen);
-
-	if (EVP_CipherFinal_ex(&ctx, buf + *outlen, &tmplen) == 0 && (tmplen > 0))
+	if (EVP_CipherFinal_ex(ctx, buf + outlen, &tmplen) == 0 && (tmplen > 0))
 	{
 		log("aes_128_cbc %s failed: EVP_CipherFinal_ex, tmplen %d", do_encrypt ? "encrypt" : "decrypt", tmplen);
-		EVP_CIPHER_CTX_cleanup(&ctx);
+		EVP_CIPHER_CTX_cleanup(ctx);
 		FREE(buf);
-		return -1;
+		return NULL;
 	}
+	log_d(tmplen);
+	outlen += tmplen;
 
-	//printf("tmplen = %d", tmplen);
 
-	*out = buf;
+	log_d(outlen);
 
-	*outlen += tmplen;
-
-	// #if ENABLE_AES_DEBUG
-	printf("to: ");
-	log_mem(*out, *outlen);
-	// #endif
-	EVP_CIPHER_CTX_cleanup(&ctx);
-	return *outlen;
+	// printf("to: ");
+	// log_mem(buf, outlen);
+	sds ret_buf = sdsnewlen(buf,outlen);
+	EVP_CIPHER_CTX_cleanup(ctx);
+	free(buf);
+	return ret_buf;
 }
 
 // int _do_aes_ecb_crypt(unsigned char *in, int inlen, unsigned char **out, int *outlen, unsigned char *key, int do_encrypt)
