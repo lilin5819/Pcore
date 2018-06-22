@@ -299,7 +299,7 @@ void data_recved_handle(uv_stream_t *stream, uv_buf_t *recved_buf)
 			client->timestamp = uv_hrtime();
 			log_d(get_elink_mode());
 			int mode = get_elink_mode();
-			// if(mode == ELINK_SERVER_MODE)         // TODO: 查找对应seq mac,创建msg或找到waitack链中对应的msg
+			// if(mode == ELINK_SERVER_MODE)
 			{
 				msg = find_msg(&ctx->waitack_list,type,mac,seq);
 				if(msg){
@@ -485,7 +485,7 @@ void msg_call_done(uv_work_t* req,int status)
 	uv_write(&msg->wr_req, (uv_stream_t *)&msg->client->tcp_handle, &buf, 1, on_msg_call_done);
 	log_();
 
-	SDS_FREE(s_data);
+	// SDS_FREE(s_data);
 }
 
 void msg_cb_done(uv_work_t* req,int status)

@@ -88,18 +88,15 @@ sds aes128_cmd(sds in, sds key, int do_encrypt)
 	unsigned char iv[EVP_MAX_IV_LENGTH] = {0};
 	EVP_CIPHER_CTX *ctx = NULL;
 
-	// log("%s from: ", do_encrypt ? "encrypt" : "decrypt");
-	// log_mem(in, sdslen(in));
-
 	ctx = EVP_CIPHER_CTX_new();
 	EVP_CIPHER_CTX_init(ctx);
 
 	EVP_CipherInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv, do_encrypt);
 
 	EVP_CIPHER_CTX_set_padding(ctx, 0);
-	log_d(sdslen(in));
-	if(do_encrypt)
-		log_s(in);
+	// log_d(sdslen(in));
+	// if(do_encrypt)
+	// 	log_s(in);
 	buf = calloc(1, sdslen(in) + 1);
 
 	if (!buf)
@@ -107,7 +104,6 @@ sds aes128_cmd(sds in, sds key, int do_encrypt)
 		log("%s: %s malloc %d failed", __func__, do_encrypt ? "encrypt" : "decrypt", sdslen(in) + 1);
 		return NULL;
 	}
-	
 
 	if (EVP_CipherUpdate(ctx, buf, &outlen, in, sdslen(in)) == 0)
 	{
@@ -116,7 +112,6 @@ sds aes128_cmd(sds in, sds key, int do_encrypt)
 		FREE(buf);
 		return NULL;
 	}
-	log_d(outlen);
 
 	if (EVP_CipherFinal_ex(ctx, buf + outlen, &tmplen) == 0 && (tmplen > 0))
 	{
@@ -125,11 +120,10 @@ sds aes128_cmd(sds in, sds key, int do_encrypt)
 		FREE(buf);
 		return NULL;
 	}
-	log_d(tmplen);
 	outlen += tmplen;
 
 
-	log_d(outlen);
+	// log_d(outlen);
 
 	// printf("to: ");
 	// log_mem(buf, outlen);

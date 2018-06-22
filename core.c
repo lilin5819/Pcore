@@ -159,7 +159,7 @@ static void idle_cb(uv_idle_t *handle)
 {
     // log_();
 }
-
+// TODO: 客户端关闭时，网络检测恢复为勤奋检测，做好会话层的消息等资源回收
 static void check_cb(uv_check_t *handle)
 {
     // log_();
@@ -169,7 +169,7 @@ void close_cb(uv_handle_t *handle)
 {
     log_();
 }
-
+// TODO: 完善网络检测层，自连自回收，实现勤奋检测和懒惰检测的自动切换和被动切换
 static void timer_netcheck_cb(uv_timer_t *handle)
 {
     elink_ctx *elink = container_of(handle, elink_ctx, timer_netcheck_handle);
