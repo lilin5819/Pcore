@@ -133,51 +133,6 @@ sds aes128_cmd(sds in, sds key, int do_encrypt)
 	return ret_buf;
 }
 
-// int _do_aes_ecb_crypt(unsigned char *in, int inlen, unsigned char **out, int *outlen, unsigned char *key, int do_encrypt)
-// {
-// 	int tmplen;
-// 	unsigned char *buf = NULL;
-// 	EVP_CIPHER_CTX ctx;
-
-// 	// #if ENABLE_AES_DEBUG
-// 	printf("from: ");
-// 	log_mem(in, inlen);
-// 	// #endif
-// 	EVP_CIPHER_CTX_init(&ctx);
-
-// 	EVP_CipherInit_ex(&ctx, EVP_aes_128_ecb(), NULL, key, NULL, do_encrypt);
-
-// 	if (do_encrypt)
-// 		buf = malloc(inlen + AES_128_BLOCK_SIZE - inlen % AES_128_BLOCK_SIZE);
-// 	else
-// 		buf = malloc(inlen);
-
-// 	if (!buf)
-// 	{
-// 		log("%s: %s malloc %d failed", __func__, do_encrypt ? "encrypt" : "decrypt", inlen);
-// 		return -1;
-// 	}
-
-// 	if (EVP_CipherUpdate(&ctx, buf, outlen, in, inlen) == 0)
-// 	{
-// 		log("aes_128_ecb %s failed: EVP_CipherUpdate", do_encrypt ? "encrypt" : "decrypt");
-// 		EVP_CIPHER_CTX_cleanup(&ctx);
-// 		FREE(buf);
-// 		return -1;
-// 	}
-
-// 	//printf("outlen = %d", *outlen);
-
-// 	if (EVP_CipherFinal_ex(&ctx, buf + *outlen, &tmplen) == 0 && (tmplen > 0))
-// 	{
-// 		log("aes_128_ecb %s failed: EVP_CipherFinal_ex, tmplen %d", do_encrypt ? "encrypt" : "decrypt", tmplen);
-// 		EVP_CIPHER_CTX_cleanup(&ctx);
-// 		FREE(buf);
-// 		return -1;
-// 	}
-// }
-
-
 sds unb64_block(sds in)
 {
 	sds out = sdsnewlen("",B64_DECODE_LEN(sdslen(in)));
