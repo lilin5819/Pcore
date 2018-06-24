@@ -159,13 +159,13 @@ typedef struct elink_msg_t{
   sds mac;
   int seq;
   struct list_head list;
-  elink_client_ctx *client;
+  pcore_client_ctx *client;
   int flag;
   uint64_t timestamp;
 } elink_msg_t;
 
 typedef struct elink_session_ctx{
-  elink_client_ctx *client;
+  pcore_client_ctx *client;
   int sid;
   sds name;
   int mode;
@@ -195,7 +195,7 @@ void msg_free(elink_msg_t *msg);
 void msg_add_to_list(elink_session_ctx * ctx,struct list_head *list,char *type);
 
 void data_recved_handle(uv_stream_t *client,uv_buf_t *buf);
-void msg_start_call(elink_client_ctx *client);
+void msg_start_call(pcore_client_ctx *client);
 sds aes128_cmd(sds in, sds key, int do_encrypt);
 sds elink_msg_decrypto(sds data,sds sharekey);
 sds elink_msg_crypto(sds data,sds sharekey);

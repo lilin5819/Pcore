@@ -38,9 +38,9 @@
 #include <sys/types.h>
 #include <stdarg.h>
 #include <stdint.h>
-#define s_malloc malloc
-#define s_realloc realloc
-#define s_free free
+// #define s_malloc malloc
+// #define s_realloc realloc
+// #define s_free free
 
 typedef char *sds;
 

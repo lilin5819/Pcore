@@ -6,29 +6,29 @@
 #endif
 static int online = 0;
 
-elink_ctx *g_elink_ctx = NULL;
-elink_server_ctx *g_server_ctx = NULL;
+pcore_ctx *g_pcore_ctx = NULL;
+pcore_server_ctx *g_server_ctx = NULL;
 struct list_head *g_client_list = NULL;
 
 
-int get_elink_mode(void)
+int get_pcore_mode(void)
 {
-    return g_elink_ctx->cfg.mode;
+    return g_pcore_ctx->cfg.mode;
 }
 
-elink_ctx *get_elink_ctx(void)
+pcore_ctx *get_pcore_ctx(void)
 {
-    return g_elink_ctx;
+    return g_pcore_ctx;
 }
 
-elink_server_ctx *get_elink_server_ctx(void)
+pcore_server_ctx *get_pcore_server_ctx(void)
 {
-    return &g_elink_ctx->server;
+    return &g_pcore_ctx->server;
 }
 
-elink_client_ctx *get_elink_client_ctx(void)
+pcore_client_ctx *get_pcore_client_ctx(void)
 {
-    return &g_elink_ctx->client;
+    return &g_pcore_ctx->client;
 }
 
 char *get_if_ipstr(char *ifname) 
@@ -111,7 +111,7 @@ char *get_gw(void)
 
 void on_client_mode_connect(uv_connect_t *conn, int status)
 {
-    elink_client_ctx *client = container_of(conn, elink_client_ctx, conn);
+    pcore_client_ctx *client = container_of(conn, pcore_client_ctx, conn);
 
     if (status < 0)
     {
@@ -139,7 +139,7 @@ static void close_walk_cb(uv_handle_t *handle, void *arg)
         uv_close(handle, NULL);
 }
 
-static void close_all(void)
+void close_all(void)
 {
     uv_walk(uv_default_loop(), close_walk_cb, NULL);
     uv_loop_close(uv_default_loop());
@@ -172,29 +172,29 @@ void close_cb(uv_handle_t *handle)
 // TODO: 完善网络检测层，自连自回收，实现勤奋检测和懒惰检测的自动切换和被动切换
 static void timer_netcheck_cb(uv_timer_t *handle)
 {
-    elink_ctx *elink = container_of(handle, elink_ctx, timer_netcheck_handle);
-    if(elink->cfg.mode == ELINK_SERVER_MODE) return;
+    pcore_ctx *pcore = container_of(handle, pcore_ctx, timer_netcheck_handle);
+    if(pcore->cfg.mode == ELINK_SERVER_MODE) return;
 
     char * ipstr = get_if_ipstr("wlan0");
     char * macstr = get_if_macstr("wlan0");
     char * gw = get_gw();
 
-    if(!ipstr && elink->client.online == 1){
-        uv_close((uv_handle_t*)&elink->client.tcp_handle,close_cb);
-        elink->client.online = 0;
+    if(!ipstr && pcore->client.online == 1){
+        uv_close((uv_handle_t*)&pcore->client.tcp_handle,close_cb);
+        pcore->client.online = 0;
         return;
     }
-    if(!gw || elink->client.online == 1)
+    if(!gw || pcore->client.online == 1)
         return;
     // log_s(ipstr);
     // log_s(gw);
-    elink->client.online = 1;
-    elink->client.ip = "127.0.0.1";
-    elink->client.mac = strdup(macstr);
-    elink->client.gw = "127.0.0.1";
-    ok(0 == uv_tcp_init(uv_default_loop(), &elink->client.tcp_handle));
-    ok(0 == uv_ip4_addr("127.0.0.1", ELINK_SERVER_PORT, &elink->client.addr));
-    ok(0 == uv_tcp_connect(&elink->client.conn,&elink->client.tcp_handle,(struct sockaddr *)&elink->client.addr,on_client_mode_connect));
+    pcore->client.online = 1;
+    pcore->client.ip = "127.0.0.1";
+    pcore->client.mac = strdup(macstr);
+    pcore->client.gw = "127.0.0.1";
+    ok(0 == uv_tcp_init(uv_default_loop(), &pcore->client.tcp_handle));
+    ok(0 == uv_ip4_addr("127.0.0.1", ELINK_SERVER_PORT, &pcore->client.addr));
+    ok(0 == uv_tcp_connect(&pcore->client.conn,&pcore->client.tcp_handle,(struct sockaddr *)&pcore->client.addr,on_client_mode_connect));
 
     FREE(ipstr);
     FREE(macstr);
@@ -203,7 +203,7 @@ static void timer_netcheck_cb(uv_timer_t *handle)
 
 void read_alloc_cb(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf)
 {
-    elink_client_ctx *client = container_of(handle, elink_client_ctx, tcp_handle);
+    pcore_client_ctx *client = container_of(handle, pcore_client_ctx, tcp_handle);
     log_();
     *buf = uv_buf_init((char*) malloc(suggested_size), suggested_size);
     client->recv_buf = buf;
@@ -212,9 +212,9 @@ void read_alloc_cb(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf)
 void read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
 {
     log_();
-    elink_client_ctx *ctx = container_of(stream, elink_client_ctx, tcp_handle);
+    pcore_client_ctx *ctx = container_of(stream, pcore_client_ctx, tcp_handle);
     if(&ctx->list == g_client_list){
-        log("this is elink core client");
+        log("this is pcore core client");
         log_s(ctx->name);   //will print client
         log_s(ctx->gw);   //will print client
         log_s(ctx->mac);   //will print client
@@ -247,7 +247,7 @@ void read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
     free(buf->base);
 }
 
-void client_ctx_free(elink_client_ctx *client_ctx)
+void client_ctx_free(pcore_client_ctx *client_ctx)
 {
     ok(client_ctx != NULL);
     if (!client_ctx)
@@ -258,10 +258,10 @@ void client_ctx_free(elink_client_ctx *client_ctx)
     FREE(client_ctx);
 }
 
-elink_client_ctx *client_ctx_alloc(void)
+pcore_client_ctx *client_ctx_alloc(void)
 {
     log_();
-    elink_client_ctx *client = (elink_client_ctx *)malloc(sizeof(elink_client_ctx));
+    pcore_client_ctx *client = (pcore_client_ctx *)malloc(sizeof(pcore_client_ctx));
     ok(client != NULL);
     if (!client)
         goto error;
@@ -285,10 +285,10 @@ void on_server_mode_connect(uv_stream_t *stream, int status)
         log("New connection error %s", uv_strerror(status));
         return;
     }
-    elink_server_ctx *server = container_of(stream, elink_server_ctx, tcp_handle);
+    pcore_server_ctx *server = container_of(stream, pcore_server_ctx, tcp_handle);
     ok(server != NULL);
     log_s(server->name);
-    elink_client_ctx *client = client_ctx_alloc();
+    pcore_client_ctx *client = client_ctx_alloc();
     ok(client != NULL);
     if (!client)
         goto error;
@@ -316,77 +316,44 @@ error:
 }
 
 
-void elink_core_init(elink_ctx *elink)
+void start_pcore(pcore_ctx *pcore)
 {
-    elink_server_ctx *server = &elink->server;
-    elink_client_ctx *client = &elink->client;
-    elink_cfg_t *cfg = &elink->cfg;
+    pcore_server_ctx *server = &pcore->server;
+    pcore_client_ctx *client = &pcore->client;
+    pcore_cfg_t *cfg = &pcore->cfg;
 
-    // ok(0 == uv_idle_init(uv_default_loop(), &elink->idle_handle));
-    // ok(0 == uv_idle_start(&elink->idle_handle, idle_cb));
+    // ok(0 == uv_idle_init(uv_default_loop(), &pcore->idle_handle));
+    // ok(0 == uv_idle_start(&pcore->idle_handle, idle_cb));
 
-    ok(0 == uv_check_init(uv_default_loop(), &elink->check_handle));
-    ok(0 == uv_check_start(&elink->check_handle, check_cb));
+    ok(0 == uv_check_init(uv_default_loop(), &pcore->check_handle));
+    ok(0 == uv_check_start(&pcore->check_handle, check_cb));
 
-    ok(0 == uv_signal_init(uv_default_loop(), &elink->signal_handle));
-    ok(0 == uv_signal_start(&elink->signal_handle, signal_cb, SIGINT));
+    ok(0 == uv_signal_init(uv_default_loop(), &pcore->signal_handle));
+    ok(0 == uv_signal_start(&pcore->signal_handle, signal_cb, SIGINT));
 
     // ok(0 == uv_signal_start(&signal_handle, signal_cb,SIGPIPE));
-    ok(0 == uv_timer_init(uv_default_loop(), &elink->timer_netcheck_handle));
-    ok(0 == uv_timer_start(&elink->timer_netcheck_handle, timer_netcheck_cb, 1 * 1000, 1 * 1000));
+    ok(0 == uv_timer_init(uv_default_loop(), &pcore->timer_netcheck_handle));
+    ok(0 == uv_timer_start(&pcore->timer_netcheck_handle, timer_netcheck_cb, 1 * 1000, 1 * 1000));
+    g_pcore_ctx = pcore;
+    g_server_ctx = &pcore->server;
+    g_client_list = &pcore->server.client_list;
 
     if(cfg->mode == ELINK_SERVER_MODE){
-        // set_log_file("/var/elink_server.log");
+        // set_log_file("/var/pcore_server.log");
 
-        log("elink in server mode");
+        log("pcore in server mode");
         ok(0 == uv_tcp_init(uv_default_loop(), &server->tcp_handle));
         ok(0 == uv_ip4_addr(cfg->ip, cfg->port, &server->addr));
         ok(0 == uv_tcp_bind(&server->tcp_handle, (struct sockaddr *)&server->addr, 0));
         ok(0 == uv_listen((uv_stream_t *)&server->tcp_handle, cfg->backlog,on_server_mode_connect));
     } else {
-        // set_log_file("/var/elink_client.log");
+        // set_log_file("/var/pcore_client.log");
 
-        log("elink in client mode , connect server in timer_netcheck");
+        log("pcore in client mode , connect server in timer_netcheck");
     }
-}
-
-LOG_DEF();
-
-int main(int argc, char const *argv[])
-{
-    elink_ctx elink = {
-        .cfg = {
-            .ip = ELINK_SERVER_IP,
-            .port = ELINK_SERVER_PORT,
-            .backlog = DEFAULT_BACKLOG,
-            .mode = ELINK_MODE,
-            .mode_name = ELINK_MODE_NAME,
-        },
-        .server = {
-            //  .ip = ELINK_SERVER_IP,
-            .name = (char *)argv[0],
-        },
-        .client = {
-            .name = (char *)argv[0],
-        },
-    };
-    init_log((char*)argv[0]);
-    INIT_LIST_HEAD(&elink.client.list);
-    INIT_LIST_HEAD(&elink.server.client_list);
-    list_add_tail(&elink.client.list,&elink.server.client_list);
-
-    g_elink_ctx = &elink;
-    g_server_ctx = &elink.server;
-    g_client_list = &elink.server.client_list;
-    // server_ctx.client_list = &elink.client.list;
-    log("start_elink");
-    log_s(elink.cfg.mode_name);
-    log_d(elink.cfg.mode);
-
-    elink_core_init(&elink);
 
     ok(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
-    close_all();
-    return 0;
 }
+
+

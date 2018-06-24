@@ -190,7 +190,7 @@ void msg_add_to_list(elink_session_ctx * ctx,struct list_head *list,char *type)
 	}
 }
 
-elink_session_ctx *elink_session_ctx_alloc(elink_client_ctx *client)
+elink_session_ctx *elink_session_ctx_alloc(pcore_client_ctx *client)
 {
 	log_();
 	elink_session_ctx* ctx = malloc(sizeof(elink_session_ctx));
@@ -203,7 +203,7 @@ elink_session_ctx *elink_session_ctx_alloc(elink_client_ctx *client)
 	INIT_LIST_HEAD(&ctx->msg_list);
 	INIT_LIST_HEAD(&ctx->waitack_list);
 	ctx->name = sdsnew("msg_layer");
-	ctx->mode = get_elink_mode(); //client mode
+	ctx->mode = get_pcore_mode(); //client mode
 	ctx->mac = sdsnew(client->mac);
 	ctx->host = sdsnew(client->ip);
 	ctx->ip = sdsnew(client->ip);
@@ -218,7 +218,7 @@ elink_session_ctx *elink_session_ctx_alloc(elink_client_ctx *client)
 	return ctx;
 }
 
-void msg_start_call(elink_client_ctx *client)
+void msg_start_call(pcore_client_ctx *client)
 {
 	elink_session_ctx * ctx = NULL;
 	log_();
@@ -267,7 +267,7 @@ void data_recved_handle(uv_stream_t *stream, uv_buf_t *recved_buf)
 	elink_session_ctx * ctx = NULL;
 	elink_msg_t *msg = NULL;
 
-	elink_client_ctx *client = container_of(stream, elink_client_ctx, tcp_handle);
+	pcore_client_ctx *client = container_of(stream, pcore_client_ctx, tcp_handle);
 	if(!client->data){
 		ctx = elink_session_ctx_alloc(client);
 		client->data = ctx; 
@@ -297,8 +297,8 @@ void data_recved_handle(uv_stream_t *stream, uv_buf_t *recved_buf)
 		if (type && mac)
 		{
 			client->timestamp = uv_hrtime();
-			log_d(get_elink_mode());
-			int mode = get_elink_mode();
+			log_d(get_pcore_mode());
+			int mode = get_pcore_mode();
 			// if(mode == ELINK_SERVER_MODE)
 			{
 				msg = find_msg(&ctx->waitack_list,type,mac,seq);
@@ -603,7 +603,7 @@ void msg_dh_cb(uv_work_t* req)
 	log_();
 	GET_WORK_MSG_CTX();
 	MSG_CB_DEFAULT_VALUE();
-	elink_server_ctx *server = get_elink_server_ctx();
+	pcore_server_ctx *server = get_pcore_server_ctx();
 	cJSON *rcev_obj_data = NULL,*send_obj_data = NULL;
 	sds b64_p = NULL,b64_g = NULL, b64_peer_pubkey = NULL,b64_me_pubkey = NULL;
 	sds s_p = NULL,s_g = NULL, s_peer_pubkey = NULL,s_me_pubkey = NULL , s_me_privkey = NULL;
