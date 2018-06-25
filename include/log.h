@@ -34,6 +34,8 @@
 #define log_mem(...)
 #define log_malloc(...)
 #define log_free(...)
+
+#define init_log(...)
 #define ok(...) __VA_ARGS__
 
 #else /* no DEBUG */

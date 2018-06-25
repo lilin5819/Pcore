@@ -1,4 +1,4 @@
-#include "list.h"
+#include "adlist.h"
 #include "log.h"
 #include "core.h"
 
@@ -24,9 +24,12 @@ int main(int argc, char const *argv[])
         },
     };
     init_log((char*)argv[0]);
-    INIT_LIST_HEAD(&pcore.client.list);
-    INIT_LIST_HEAD(&pcore.server.client_list);
-    list_add_tail(&pcore.client.list,&pcore.server.client_list);
+    // INIT_LIST_HEAD(&pcore.client.list);
+    // INIT_LIST_HEAD(&pcore.server.client_list);
+    // list_add_tail(&pcore.client.list,&pcore.server.client_list);
+    // pcore.client.list = listCreate();
+    pcore.server.client_list = listCreate();
+    listAddNodeTail(pcore.server.client_list,&pcore.client);
 
     // server_ctx.client_list = &pcore.client.list;
     log("start_pcore");

@@ -2,7 +2,8 @@
 
 #include <stdint.h>
 #include <uv.h>
-#include "list.h"
+// #include "list.h"
+#include "adlist.h"
 
 #define ELINK_SERVER_IP "0.0.0.0"
 #define ELINK_SERVER_PORT 32768
@@ -13,6 +14,11 @@
 
 #define CONTAINER_OF(ptr, type, field)                                        \
   ((type *) ((char *) (ptr) - ((char *) &((type *) 0)->field)))
+
+#ifndef container_of
+#define container_of(ptr, type, member) \
+	((type *)((char *)(ptr) - offsetof(type, member)))
+#endif
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
@@ -40,7 +46,9 @@ typedef struct pcore_server_ctx
   int flag;
   uint64_t timestamp;
   char *name;
-  struct list_head client_list;
+  struct list *client_list;
+  struct dict *var;                 // string string
+  struct list *log_list;
   void *data;
 } pcore_server_ctx;
 
@@ -51,15 +59,16 @@ typedef struct pcore_client_ctx
   int flag;
   uint64_t timestamp;
   char *name;
+  struct dict *var;                 // string string
   char *mac;
   char *ip;
   char *gw;
   uv_connect_t conn;
   int online;
-  // uv_timer_t timer_conn;
-  struct list_head list;
-  void *data;
+  // struct list *list;
+  struct list *log_list;
   uv_buf_t *recv_buf;
+  void *data;
 } pcore_client_ctx;
 
 typedef struct pcore_cfg_t
@@ -72,6 +81,33 @@ typedef struct pcore_cfg_t
   char* mode_name;
 } pcore_cfg_t;
 
+typedef enum{
+    LAYER_SIGNAL,
+    LAYER_TIMER,
+    LAYER_ASYNC,
+    LAYER_WORK,
+    LAYER_SERVER,
+    LAYER_CLIENT,
+    LAYER_AGENT
+}layer_type;
+
+typedef struct pcore_layer_t
+{
+    int type;
+    int id;
+    char *name;
+    uv_handle_t handle;
+    union{
+      uv_signal_cb signal;
+      uv_timer_cb timer;
+      uv_check_cb check;
+    }cb;
+    // uv_work_cb alloc;  
+    uv_work_cb free;
+    struct list *log_list;
+    void *data;
+}pcore_layer_t;
+
 typedef struct pcore_ctx
 {
     pcore_cfg_t cfg;
@@ -83,9 +119,12 @@ typedef struct pcore_ctx
     uv_signal_t signal_handle;
     uv_check_t check_handle;
     uv_timer_t timer_netcheck_handle;
+    struct dict *layer_map;              // layer name to registered layer map
+    struct dict *item_map;              // type name to item function dict alloc free
+    struct list *gc_list;                // point to node
+    struct list *log_list;                // log list
     int flag;
-    int nclient;
-    int nmsg;
+    void *data;
 } pcore_ctx;
 
 pcore_server_ctx *get_pcore_server_ctx(void);
@@ -94,8 +133,9 @@ pcore_client_ctx *get_pcore_client_ctx(void);
 void start_pcore(pcore_ctx *pcore);
 void close_all(void);
 void close_cb(uv_handle_t *handle);
-char *get_if_ipstr(char *ifname);
-char *get_if_macstr(char *ifname);
+// char *get_if_ipstr(char *ifname);
+// char *get_if_macstr(char *ifname);
+// char *get_gw(void);
 int get_pcore_mode(void);
 void read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf);
 void read_alloc_cb(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf);

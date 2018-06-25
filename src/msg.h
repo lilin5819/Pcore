@@ -1,4 +1,5 @@
 #ifndef _MSG_H_
+#define _MSG_H_
 #include "sds.h"
 #include "cJSON.h"
 #include "list.h"
