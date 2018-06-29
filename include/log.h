@@ -20,7 +20,7 @@
 #define LOG_INIT(...)
 #define log_tag(...)
 #define log_base(...)
-#define log(...)
+#define logs(...)
 #define log_(...)
 #define log_err(...)
 #define log_e(...)
@@ -69,7 +69,8 @@ static char *_log_tag = NULL;
 
 char *get_log_name(void);
 void set_log_name(char *appname);
-    void set_log_file(char * file);
+void set_log_file(char * file);
+    
 // void set_log_devnull(void);
 
 #define LOG_DEF()                              \
@@ -110,16 +111,16 @@ static inline void log_base(FILE *fp, const char flag, const char *tag, const ch
         log_base(fp, flag, tag, __FILE__, __FUNCTION__, __LINE__, __VA_ARGS__); \
     } while (0)
 
-#define log(...) log_line(stdout, _GRE, NULL, __VA_ARGS__)
+#define logs(...) log_line(stdout, _GRE, NULL, __VA_ARGS__)
 #define log_() log_line(stdout, _GRE, NULL, "line")
 #define log_tag(tag, ...) log_line(stdout, _GRE, tag, __VA_ARGS__)
 #define log_err(MSG, ...) log_line(stderr, _RED | _FLASH, MSG, __VA_ARGS__)
 #define log_e(...) log_err("ERROR", __VA_ARGS__)
-#define log_d(N) log("%s=%d", #N, N)
-#define log_u(N) log("%s=%u", #N, N)
-#define log_ld(N) log("%s=%ld", #N, N)
-#define log_lu(N) log("%s=%lu", #N, N)
-#define log_f(N) log("%s=%f", #N, N)
+#define log_d(N) logs("%s=%d", #N, N)
+#define log_u(N) logs("%s=%u", #N, N)
+#define log_ld(N) logs("%s=%ld", #N, N)
+#define log_lu(N) logs("%s=%lu", #N, N)
+#define log_f(N) logs("%s=%f", #N, N)
 
 #define log_p(N)                                \
     do                                          \

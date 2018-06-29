@@ -101,13 +101,13 @@ sds aes128_cmd(sds in, sds key, int do_encrypt)
 
 	if (!buf)
 	{
-		log("%s: %s malloc %d failed", __func__, do_encrypt ? "encrypt" : "decrypt", sdslen(in) + 1);
+		logs("%s: %s malloc %d failed", __func__, do_encrypt ? "encrypt" : "decrypt", sdslen(in) + 1);
 		return NULL;
 	}
 
 	if (EVP_CipherUpdate(ctx, buf, &outlen, in, sdslen(in)) == 0)
 	{
-		log("aes_128_cbc %s failed: EVP_CipherUpdate", do_encrypt ? "encrypt" : "decrypt");
+		logs("aes_128_cbc %s failed: EVP_CipherUpdate", do_encrypt ? "encrypt" : "decrypt");
 		EVP_CIPHER_CTX_cleanup(ctx);
 		FREE(buf);
 		return NULL;
@@ -115,7 +115,7 @@ sds aes128_cmd(sds in, sds key, int do_encrypt)
 
 	if (EVP_CipherFinal_ex(ctx, buf + outlen, &tmplen) == 0 && (tmplen > 0))
 	{
-		log("aes_128_cbc %s failed: EVP_CipherFinal_ex, tmplen %d", do_encrypt ? "encrypt" : "decrypt", tmplen);
+		logs("aes_128_cbc %s failed: EVP_CipherFinal_ex, tmplen %d", do_encrypt ? "encrypt" : "decrypt", tmplen);
 		EVP_CIPHER_CTX_cleanup(ctx);
 		FREE(buf);
 		return NULL;

@@ -55,7 +55,7 @@ long elink_check_header(const char *buf, int hdr_size)
 	if (hdr_size == ELINK_HEADER_LEN) {
 		memcpy(&magic1, buf, sizeof(magic1));
 		if (ntohl(magic1) != ELINK_MAGIC) {
-			log("invalid magic 0x%x", htonl(magic1));
+			logs("invalid magic 0x%x", htonl(magic1));
 			return 0;
 		} else {
 			memcpy(&len, buf + ELINK_MAGIC_LEN, ELINK_CONTENT_LEN);
@@ -64,14 +64,14 @@ long elink_check_header(const char *buf, int hdr_size)
 		memcpy(&magic2, buf, sizeof(magic2));
 
 		if (ntohl(magic2) != ELINKCC_MAGIC) {
-			log("invalid magic 0x%x", ntohl(magic2));
+			logs("invalid magic 0x%x", ntohl(magic2));
 			return 0;
 		} else {
 			memcpy(&len, buf + ELINKCC_MAGIC_LEN, ELINK_CONTENT_LEN);
 		}
 	}
 
-	log("%s: hdr size %d, msg len is %d", __func__, hdr_size, ntohl(len));
+	logs("%s: hdr size %d, msg len is %d", __func__, hdr_size, ntohl(len));
 	// log_d(ntohl(len));
 
 	return ntohl(len);
@@ -98,7 +98,7 @@ sds elink_msg_pack(elink_session_ctx * ctx,sds data)
 			newbuf = sdscatlen(newbuf, data, msg_len);
 		}
 	} else {
-		log("%s, failed to malloc", __func__);
+		logs("%s, failed to malloc", __func__);
 	}
 	
 	log_d(sdslen(newbuf));
@@ -111,7 +111,7 @@ sds elink_msg_unpack(elink_session_ctx * ctx,uv_buf_t *data)
 	long msg_len = 0;
 	msg_len = elink_check_header(data->base, ELINK_HEADER_LEN);
 	log_ld(msg_len);
-	// log(sdscatrepr(sdsempty(),data->base,data->len));
+	// logs(sdscatrepr(sdsempty(),data->base,data->len));
 
 	return sdsnewlen(data->base + ELINK_HEADER_LEN, msg_len);
 }
@@ -154,7 +154,7 @@ static void on_timer_call(uv_timer_t *handle)
 		log_s(msg->mac);
 		uv_queue_work(uv_default_loop(), &msg->msg_req, msg->call, msg->after_call);
 	}else{
-		log("there is no bootup handle to call");
+		logs("there is no bootup handle to call");
 		uv_close((uv_handle_t*)handle,close_cb);
 	}
 }
@@ -165,7 +165,7 @@ void msg_add_to_list(elink_session_ctx * ctx,struct list_head *list,char *type)
 	{
 		if (!strcmp(msg_call_map[i].call_type, type))
 		{
-			// log("msg->call_type=%s msg_call_map[%d].call_type=%s msg_call_map[%d].cb_type=%s", type, i, msg_call_map[i].call_type, i, msg_call_map[i].cb_type);
+			// logs("msg->call_type=%s msg_call_map[%d].call_type=%s msg_call_map[%d].cb_type=%s", type, i, msg_call_map[i].call_type, i, msg_call_map[i].cb_type);
 			log_s(type);
 			elink_msg_t * msg =  malloc(sizeof(elink_msg_t));
 			memset(msg,0,sizeof(elink_msg_t));
@@ -226,7 +226,7 @@ void msg_start_call(pcore_client_ctx *client)
 	{
 		ctx = elink_session_ctx_alloc(client);
 		client->data = ctx; 
-		log("this is a new client,alloc session context !!!");
+		logs("this is a new client,alloc session context !!!");
 	}
 	else
 		ctx = (elink_session_ctx *)client->data;
@@ -245,9 +245,9 @@ elink_msg_t *find_msg(struct list_head *msg_list,sds type,sds mac,uint32_t seque
 {
 	log_();
 	elink_msg_t *node = NULL,*next = NULL;
-	log("find type:%s mac:%s seq:%u",type,mac,sequence);
+	logs("find type:%s mac:%s seq:%u",type,mac,sequence);
 	list_for_each_entry_safe(node,next,msg_list,list){
-		log("node->cb_type:%s node->mac:%s node->seq:%u ",node->cb_type,node->mac,node->seq);
+		logs("node->cb_type:%s node->mac:%s node->seq:%u ",node->cb_type,node->mac,node->seq);
 		if(!strcmp(node->cb_type,type) && !strcmp(node->mac,mac) && node->seq == sequence){
 			list_del(&node->list);
 			return node;
@@ -271,7 +271,7 @@ void data_recved_handle(uv_stream_t *stream, uv_buf_t *recved_buf)
 	if(!client->data){
 		ctx = elink_session_ctx_alloc(client);
 		client->data = ctx; 
-		log("this is a new client,alloc session context !!!");
+		logs("this is a new client,alloc session context !!!");
 	}else
 		ctx = (elink_session_ctx *)client->data;
 	log_d(ctx->dh_done);
@@ -323,7 +323,7 @@ void data_recved_handle(uv_stream_t *stream, uv_buf_t *recved_buf)
 					INIT_LIST_HEAD(&msg->list);
 					list_add_tail(&msg->list, &ctx->msg_list);
 					// msg->flag |= MSG_ST_IN_LIST;
-					log("type:%s mac:%s sequence:%d", type, mac, seq);
+					logs("type:%s mac:%s sequence:%d", type, mac, seq);
 					msg_cb_dispatch(ctx,msg);
 				}
 
@@ -369,7 +369,7 @@ void msg_cb_dispatch(elink_session_ctx * ctx,elink_msg_t *msg)
 	{
 		if (!strcmp((const sds)msg_call_map[i].call_type,(const sds) msg->call_type))
 		{
-			log("msg->call_type=%s msg_call_map[%d].call_type=%s msg_call_map[%d].cb_type=%s", msg->call_type, i, msg_call_map[i].call_type, i, msg_call_map[i].cb_type);
+			logs("msg->call_type=%s msg_call_map[%d].call_type=%s msg_call_map[%d].cb_type=%s", msg->call_type, i, msg_call_map[i].call_type, i, msg_call_map[i].cb_type);
 			sdscpy(msg->call_type,msg_call_map[i].call_type);
 			msg->call = msg_call_map[i].call;
 			msg->after_call = msg_call_map[i].after_call;
@@ -405,7 +405,7 @@ void on_msg_call_done(uv_write_t *req, int status)
 	elink_session_ctx *ctx = (elink_session_ctx *)req->data;
     if (status)
     {
-        log("Write error %s", uv_strerror(status));
+        logs("Write error %s", uv_strerror(status));
     }
 	if(!strcmp(msg->call_type,"dh"))
 		ctx->dh_done = 1;
@@ -424,7 +424,7 @@ void on_msg_cb_done(uv_write_t *req, int status)
 	elink_session_ctx *ctx = (elink_session_ctx *)req->data;
     if (status)
     {
-        log("Write error %s", uv_strerror(status));
+        logs("Write error %s", uv_strerror(status));
     }
 	if(!strcmp(msg->cb_type,"dh"))
 		ctx->dh_done = 1;

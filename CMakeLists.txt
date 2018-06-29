@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0.0)
 project(pcore VERSION 0.1.0)
-
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D__FILE__='\"$(subst ${CMAKE_SOURCE_DIR}/,,$(abspath $<))\"' -Wno-builtin-macro-redefined")
 add_definitions(-DDEBUG)
 link_directories("." "./lib" "/usr/lib/x86_64-linux-gnu")
 include_directories(. include pcore/zmalloc pcore/sds pcore/dict pcore/cjson pcore/ae pcore/adlist)
@@ -13,6 +13,7 @@ aux_source_directory(pcore/core PCORE_SRCS)
 set(AE_SRCS pcore/ae/ae.c pcore/ae/anet.c)
 aux_source_directory(src MAIN_MSG_SRCS)
 set(MAIN_SRCS src/main.c)
+message("${CMAKE_C_FLAGS}")
 
 #  LIBS
 add_library(zmalloc SHARED ${ZMALLOC_SRCS})

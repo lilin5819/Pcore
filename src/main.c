@@ -32,7 +32,7 @@ int main(int argc, char const *argv[])
     listAddNodeTail(pcore.server.client_list,&pcore.client);
 
     // server_ctx.client_list = &pcore.client.list;
-    log("start_pcore");
+    logs("start_pcore");
     log_s(pcore.cfg.mode_name);
     log_d(pcore.cfg.mode);
 
