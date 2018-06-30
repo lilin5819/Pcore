@@ -1,5 +1,6 @@
 #include <uv.h>
 #include "core.h"
+#include "zmalloc.h"
 #include "msg.h"
 #include "sds.h"
 #include "list.h"
@@ -98,7 +99,7 @@ sds elink_msg_pack(elink_session_ctx * ctx,sds data)
 			newbuf = sdscatlen(newbuf, data, msg_len);
 		}
 	} else {
-		logs("%s, failed to malloc", __func__);
+		logs("%s, failed to zmalloc", __func__);
 	}
 	
 	log_d(sdslen(newbuf));
@@ -167,7 +168,7 @@ void msg_add_to_list(elink_session_ctx * ctx,struct list_head *list,char *type)
 		{
 			// logs("msg->call_type=%s msg_call_map[%d].call_type=%s msg_call_map[%d].cb_type=%s", type, i, msg_call_map[i].call_type, i, msg_call_map[i].cb_type);
 			log_s(type);
-			elink_msg_t * msg =  malloc(sizeof(elink_msg_t));
+			elink_msg_t * msg =  zmalloc(sizeof(elink_msg_t));
 			memset(msg,0,sizeof(elink_msg_t));
 			msg->call_type = sdsnew(msg_call_map[i].call_type);
 			msg->call = msg_call_map[i].call;
@@ -193,7 +194,7 @@ void msg_add_to_list(elink_session_ctx * ctx,struct list_head *list,char *type)
 elink_session_ctx *elink_session_ctx_alloc(pcore_client_ctx *client)
 {
 	log_();
-	elink_session_ctx* ctx = malloc(sizeof(elink_session_ctx));
+	elink_session_ctx* ctx = zmalloc(sizeof(elink_session_ctx));
 	log_();
 	ok(ctx != NULL);
 	memset(ctx, 0, sizeof(elink_session_ctx));
@@ -306,7 +307,7 @@ void data_recved_handle(uv_stream_t *stream, uv_buf_t *recved_buf)
 					msg->cb_json = cJSON_Duplicate(json, 1);
 					msg_call_ret_check(ctx,msg);
 				} else {
-					msg = (elink_msg_t *)malloc(sizeof(elink_msg_t));
+					msg = (elink_msg_t *)zmalloc(sizeof(elink_msg_t));
 					memset(msg, 0, sizeof(*msg));
 					msg->timestamp = client->timestamp;
 					msg->call_type = sdsnew(type);
@@ -514,7 +515,7 @@ void msg_cb_done(uv_work_t* req,int status)
 	msg->wr_req.data = ctx;
 	uv_write(&msg->wr_req, (uv_stream_t *)&msg->client->tcp_handle, &buf, 1, on_msg_cb_done);
 	// SDS_FREE(s_data);
-	// free(req);
+	// zfree(req);
 	memset(req,0,sizeof(*req));
 	// JSON_FREE(msg->cb_json);
 }

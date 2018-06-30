@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
-
+#include "zmalloc.h"
 #include "ae.h"
 
 int print(struct aeEventLoop *loop, long long id, void *clientData)

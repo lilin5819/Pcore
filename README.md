@@ -15,6 +15,7 @@
 │   ├── cjson       // cjson库
 │   ├── core               // pcore核心代码 ：注册模块，环境检测，垃圾回收，数据收集，日志收集
 │   ├── dict        // redis字典(hash表)
+│   ├── object            // pcore 类字典，注册自建类的新建、回收方法，便于资源回收
 │   ├── sds         // redis动态字符串
 │   └── zmalloc     // redis 内存管理封装
 ├── src                     // main函数以及会话控制层,会话拓展层

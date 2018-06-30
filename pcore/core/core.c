@@ -1,6 +1,7 @@
 #include "core.h"
 #include "env.h"
 #include "log.h"
+#include "zmalloc.h"
 
 #ifdef CONFIG_MSG
 #include "msg.h"
@@ -39,7 +40,7 @@ void on_client_mode_connect(uv_connect_t *conn, int status)
     if (status < 0)
     {
         logs("New connection error %s", uv_strerror(status));
-        // free(conn);
+        // zfree(conn);
         memset(conn,0,sizeof(*conn));
         uv_close((uv_handle_t *)&client->tcp_handle,close_cb);
         client->online = 0;
@@ -97,7 +98,7 @@ void read_alloc_cb(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf)
 {
     pcore_client_ctx *client = container_of(handle, pcore_client_ctx, tcp_handle);
     log_();
-    *buf = uv_buf_init((char*) malloc(suggested_size), suggested_size);
+    *buf = uv_buf_init((char*) zmalloc(suggested_size), suggested_size);
     client->recv_buf = buf;
 }
 
@@ -136,7 +137,7 @@ void read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
 #endif
     }
 
-    free(buf->base);
+    zfree(buf->base);
 }
 
 void client_ctx_free(pcore_client_ctx *client_ctx)
@@ -154,7 +155,7 @@ void client_ctx_free(pcore_client_ctx *client_ctx)
 pcore_client_ctx *client_ctx_alloc(void)
 {
     log_();
-    pcore_client_ctx *client = (pcore_client_ctx *)malloc(sizeof(pcore_client_ctx));
+    pcore_client_ctx *client = (pcore_client_ctx *)zmalloc(sizeof(pcore_client_ctx));
     ok(client != NULL);
     if (!client)
         goto error;

@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <unistd.h>
 
+#include "zmalloc.h"
 #include "ae.h"
 #include "anet.h"
 
@@ -12,14 +13,14 @@ void writeToClient(aeEventLoop *loop, int fd, void *clientdata, int mask)
     char *buffer = clientdata;
     printf("%p\n", clientdata);
     write(fd, buffer, strlen(buffer));
-    free(buffer);
+    zfree(buffer);
     aeDeleteFileEvent(loop, fd, mask);
 }
 
 void readFromClient(aeEventLoop *loop, int fd, void *clientdata, int mask)
 {
     int buffer_size = 1024;
-    char *buffer = malloc(sizeof(char) * buffer_size);
+    char *buffer = zmalloc(sizeof(char) * buffer_size);
     bzero(buffer, buffer_size);
     int size;
     size = read(fd, buffer, buffer_size);

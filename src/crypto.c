@@ -19,6 +19,7 @@
 
 #include "core.h"
 // #include "msg.h"
+#include "zmalloc.h"
 #include "sds.h"
 #include "log.h"
 
@@ -101,7 +102,7 @@ sds aes128_cmd(sds in, sds key, int do_encrypt)
 
 	if (!buf)
 	{
-		logs("%s: %s malloc %d failed", __func__, do_encrypt ? "encrypt" : "decrypt", sdslen(in) + 1);
+		logs("%s: %s zmalloc %d failed", __func__, do_encrypt ? "encrypt" : "decrypt", sdslen(in) + 1);
 		return NULL;
 	}
 
@@ -129,7 +130,7 @@ sds aes128_cmd(sds in, sds key, int do_encrypt)
 	// log_mem(buf, outlen);
 	sds ret_buf = sdsnewlen(buf,outlen);
 	EVP_CIPHER_CTX_cleanup(ctx);
-	free(buf);
+	zfree(buf);
 	return ret_buf;
 }
 

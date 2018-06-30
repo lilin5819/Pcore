@@ -27,7 +27,7 @@
     {                  \
         if (x != NULL) \
         {              \
-            free(x);   \
+            zfree(x);   \
             x = NULL;  \
         }              \
     } while (0);
@@ -120,7 +120,7 @@ typedef struct pcore_ctx
     uv_check_t check_handle;
     uv_timer_t timer_netcheck_handle;
     struct dict *layer_map;              // layer name to registered layer map
-    struct dict *item_map;              // type name to item function dict alloc free
+    struct dict *obj_map;              // type name to item function dict alloc free
     struct list *gc_list;                // point to node
     struct list *log_list;                // logs list
     int flag;

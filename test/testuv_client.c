@@ -1,5 +1,6 @@
 #include <uv.h>
 #include <stdlib.h>
+#include "zmalloc.h"
 
 void on_connect(uv_connect_t *conn, int status)
 {
@@ -26,10 +27,10 @@ void on_connect(uv_connect_t *conn, int status)
 
 int main(int argc, char const *argv[])
 {
-    uv_tcp_t *socket = (uv_tcp_t *)malloc(sizeof(uv_tcp_t));
+    uv_tcp_t *socket = (uv_tcp_t *)zmalloc(sizeof(uv_tcp_t));
     uv_tcp_init(uv_default_loop(), socket);
 
-    uv_connect_t *connect = (uv_connect_t *)malloc(sizeof(uv_connect_t));
+    uv_connect_t *connect = (uv_connect_t *)zmalloc(sizeof(uv_connect_t));
 
     struct sockaddr_in dest;
     uv_ip4_addr("192.168.101.1", 80, &dest);
