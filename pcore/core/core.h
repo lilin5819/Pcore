@@ -122,7 +122,7 @@ typedef struct pcore_ctx
     struct dict *layer_map;              // layer name to registered layer map
     struct dict *obj_map;              // type name to item function dict alloc free
     struct list *gc_list;                // point to node
-    struct list *log_list;                // logs list
+    struct list *log_list;                // log_printf list
     int flag;
     void *data;
 } pcore_ctx;

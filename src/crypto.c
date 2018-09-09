@@ -95,20 +95,20 @@ sds aes128_cmd(sds in, sds key, int do_encrypt)
 	EVP_CipherInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv, do_encrypt);
 
 	EVP_CIPHER_CTX_set_padding(ctx, 0);
-	// log_d(sdslen(in));
+	// log_int(sdslen(in));
 	// if(do_encrypt)
 	// 	log_s(in);
 	buf = calloc(1, sdslen(in) + 1);
 
 	if (!buf)
 	{
-		logs("%s: %s zmalloc %d failed", __func__, do_encrypt ? "encrypt" : "decrypt", sdslen(in) + 1);
+		log_printf("%s: %s zmalloc %d failed\n", __func__, do_encrypt ? "encrypt" : "decrypt", sdslen(in) + 1);
 		return NULL;
 	}
 
 	if (EVP_CipherUpdate(ctx, buf, &outlen, in, sdslen(in)) == 0)
 	{
-		logs("aes_128_cbc %s failed: EVP_CipherUpdate", do_encrypt ? "encrypt" : "decrypt");
+		log_printf("aes_128_cbc %s failed: EVP_CipherUpdate\n", do_encrypt ? "encrypt" : "decrypt");
 		EVP_CIPHER_CTX_cleanup(ctx);
 		FREE(buf);
 		return NULL;
@@ -116,7 +116,7 @@ sds aes128_cmd(sds in, sds key, int do_encrypt)
 
 	if (EVP_CipherFinal_ex(ctx, buf + outlen, &tmplen) == 0 && (tmplen > 0))
 	{
-		logs("aes_128_cbc %s failed: EVP_CipherFinal_ex, tmplen %d", do_encrypt ? "encrypt" : "decrypt", tmplen);
+		log_printf("aes_128_cbc %s failed: EVP_CipherFinal_ex, tmplen %d\n", do_encrypt ? "encrypt" : "decrypt", tmplen);
 		EVP_CIPHER_CTX_cleanup(ctx);
 		FREE(buf);
 		return NULL;
@@ -124,7 +124,7 @@ sds aes128_cmd(sds in, sds key, int do_encrypt)
 	outlen += tmplen;
 
 
-	// log_d(outlen);
+	// log_int(outlen);
 
 	// printf("to: ");
 	// log_mem(buf, outlen);
@@ -177,17 +177,17 @@ int main(int argc, char const *argv[])
 	log_();
 	gen_dh_param(s_p,s_g);
 
-	// log_d(sdslen(s_p));
-	// log_d(sdslen(s_g));
-	// log_d(sdslen(s_pubkey));
+	// log_int(sdslen(s_p));
+	// log_int(sdslen(s_g));
+	// log_int(sdslen(s_pubkey));
 
 	// sdsupdatelen(s_p);
 	// sdsupdatelen(s_g);
 	// sdsupdatelen(s_pubkey);
 
-	// log_d(sdslen(s_p));
-	// log_d(sdslen(s_g));
-	// log_d(sdslen(s_pubkey));
+	// log_int(sdslen(s_p));
+	// log_int(sdslen(s_g));
+	// log_int(sdslen(s_pubkey));
 
 	// s_p = unb64_block(s_p);
 	// s_g = unb64_block(s_g);
@@ -213,9 +213,9 @@ int main(int argc, char const *argv[])
 	// log_s(s_p);
 	// log_s(s_g);
 	// log_s(s_pubkey);
-	// log_d(sdslen(s_p));
-	// log_d(sdslen(s_g));
-	// log_d(sdslen(s_pubkey));
+	// log_int(sdslen(s_p));
+	// log_int(sdslen(s_g));
+	// log_int(sdslen(s_pubkey));
 	// gen_dh_pubkey(p,g,pubkey,privkey);
 
 	return 0;

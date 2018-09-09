@@ -14,32 +14,15 @@
 #define OBJ_EXT 255
 
 typedef struct object {
-    uint8_t type;
-    uint8_t unused;
-    uint16_t extype; 
+    uint32_t type;
     void *ptr;
 } object;
 
-typedef void exObjectCreator(uint16_t type, void *val);
-typedef void exObjectAlloc(void *ptr);
-typedef void exObjectFree(void *ptr);
-
-typedef struct exObject {
-    uint16_t type;
-    sds name;
-    exObjectCreator * creator;
-    exObjectAlloc * alloc;
-    exObjectFree * free;
-} exObject;
-
-object* objectCreate(uint8_t type,void *ptr);
-object* objectExCreate(uint16_t extype,void *ptr);
+object* objectCreate(uint32_t type,void *ptr);
 int objectGetType(object *obj);
-int objectGetExType(object *obj);
 void* objectGetVal(object *obj);
 void objectSdsPrint(object *obj);
 void objectDestructor(void *privdata, void *val);
-void dictExDestructor(void *privdata, void *val);
 void objectSdsDestructor(void *privdata, void *val);
 void objectListDestructor(void *privdata, void *val);
 void objectDictDestructor(void *privdata, void *val);
@@ -56,9 +39,5 @@ dict *dictSdsCreate(void);
 dict *dictCaseSdsCreate(void);
 // list *listObjectCreate(void);
 // list *listObjectDump(void);
-
-int dictExObjectMapInit(void);
-int dictExObjectMapReg(exObject *obj);
-void dictExObjectMapRelease(void);
 
 #endif // _OBJECT_H_

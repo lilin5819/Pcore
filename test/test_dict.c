@@ -26,7 +26,10 @@ long long timeInMilliseconds(void);
 
 /* dict-benchmark [count] */
 int main(int argc, char **argv) {
-    init_log((char*)argv[0]);
+    set_log_app((char*)argv[0]);
+    set_log_level(3);
+    set_log_mode(_MODE_VERBOSE);
+    
     log_();
 
     long j;
@@ -62,16 +65,21 @@ int main(int argc, char **argv) {
         int retval = dictAdd(dict,key , objectCreate(OBJ_DICT,dictSdsCreate()) );
         assert(retval == DICT_OK);
     }
+    for (j = 300+0; j < 300+count; j++) {
+        sds key = sdsfromlonglong(j);
+        int retval = dictAdd(dict,key , objectCreate(OBJ_NUM,j) );
+        assert(retval == DICT_OK);
+    }
     end_benchmark("Inserting");
-    assert((long)dictSize(dict) == 3*count);
-    log_d(zmalloc_used_memory());
+    assert((long)dictSize(dict) == 4*count);
+    log_int(zmalloc_used_memory());
 
     /* Wait for rehashing. */
     while (dictIsRehashing(dict)) {
         dictRehashMilliseconds(dict,100);
         printf("rehash\n");
     }
-    log_d(zmalloc_used_memory());
+    log_int(zmalloc_used_memory());
 
     start_benchmark();
     dictIterator *it = dictGetIterator(dict);
@@ -120,16 +128,9 @@ int main(int argc, char **argv) {
         assert(retval == DICT_OK);
     }
     end_benchmark("Removing and adding");
-    log_d(zmalloc_used_memory());
+    log_int(zmalloc_used_memory());
 
     dictRelease(dict);
-    log_d(zmalloc_used_memory());
+    log_int(zmalloc_used_memory());
 
-    dictExObjectMapInit();
-    log_d(zmalloc_used_memory());
-
-    // dictExObjectMapReg();
-
-    dictExObjectMapRelease();
-    log_d(zmalloc_used_memory());
 }

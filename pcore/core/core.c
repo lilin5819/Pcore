@@ -39,7 +39,7 @@ void on_client_mode_connect(uv_connect_t *conn, int status)
 
     if (status < 0)
     {
-        logs("New connection error %s", uv_strerror(status));
+        log_printf("New connection error %s\n", uv_strerror(status));
         // zfree(conn);
         memset(conn,0,sizeof(*conn));
         uv_close((uv_handle_t *)&client->tcp_handle,close_cb);
@@ -53,7 +53,7 @@ void on_client_mode_connect(uv_connect_t *conn, int status)
     msg_start_call(client);
 #endif
 	uv_read_start((uv_stream_t *)&client->tcp_handle, read_alloc_cb, read_cb);
-    log_d(client->online);
+    log_int(client->online);
     return;
 }
 
@@ -71,7 +71,7 @@ void close_all(void)
 
 static void signal_cb(uv_signal_t *handle, int signum)
 {
-    log_d(signum);
+    log_int(signum);
     if (signum == 2)
     {
         uv_signal_stop(handle);
@@ -107,26 +107,26 @@ void read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
     log_();
     pcore_client_ctx *ctx = container_of(stream, pcore_client_ctx, tcp_handle);
     if(ctx == g_client_list->head->value){
-        logs("this is pcore core client");
+        log_printf("this is pcore core client\n");
         log_s(ctx->name);   //will print client
         log_s(ctx->gw);   //will print client
         log_s(ctx->mac);   //will print client
         log_s(ctx->ip);   //will print client
     }else{
-        logs("another client");
+        log_printf("another client\n");
     }
 
     uv_buf_t recved_buf;
     ok(ctx != NULL);
-    log_d(nread);
+    log_int(nread);
     // log_s(g_server_ctx->name);
 
     if (nread < 0)
     {
         if (nread != UV_EOF)
-            logs("Read error %s ,close it", uv_err_name(nread));
+            log_printf("Read error %s ,close it\n", uv_err_name(nread));
         uv_close((uv_handle_t *)stream, close_cb);
-        log_e("close client");
+        log_error("close client\n");
     }
     else if (nread > 0)
     {
@@ -176,7 +176,7 @@ void on_server_mode_connect(uv_stream_t *stream, int status)
 {
     if (status < 0)
     {
-        logs("New connection error %s", uv_strerror(status));
+        log_printf("New connection error %s\n", uv_strerror(status));
         return;
     }
     pcore_server_ctx *server = container_of(stream, pcore_server_ctx, tcp_handle);
@@ -204,7 +204,7 @@ void on_server_mode_connect(uv_stream_t *stream, int status)
     return;
 
 error:
-    log_e("close client");
+    log_error("close client");
     uv_close((uv_handle_t *)&client->tcp_handle, close_cb);
     client_ctx_free(client);
     return;
@@ -291,17 +291,17 @@ void start_pcore(pcore_ctx *pcore)
     // pcore->layer_map = dictCreate(NULL,NULL);
 
     if(cfg->mode == ELINK_SERVER_MODE){
-        // set_log_file("/var/pcore_server.logs");
+        // set_log_file("/var/pcore_server.log_printf");
 
-        logs("pcore in server mode");
+        log_printf("pcore in server mode\n");
         ok(0 == uv_tcp_init(uv_default_loop(), &server->tcp_handle));
         ok(0 == uv_ip4_addr(cfg->ip, cfg->port, &server->addr));
         ok(0 == uv_tcp_bind(&server->tcp_handle, (struct sockaddr *)&server->addr, 0));
         ok(0 == uv_listen((uv_stream_t *)&server->tcp_handle, cfg->backlog,on_server_mode_connect));
     } else {
-        // set_log_file("/var/pcore_client.logs");
+        // set_log_file("/var/pcore_client.log_printf");
 
-        logs("pcore in client mode , connect server in timer_netcheck");
+        log_printf("pcore in client mode , connect server in timer_netcheck\n");
     }
 
     ok(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
