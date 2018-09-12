@@ -538,6 +538,32 @@ char *get_gw_if(void)
     return NULL;
 }
 
+char *get_ipstr_from_macstr(char *macstr)
+{
+    if(!macstr) return NULL;
+    static char ipstr[32] = {0};
+    arp_item *arp_item = NULL;
+    if(arp_query(ARP_MAC,macstr,&arp_item,1) > 0){
+        sprintf(ipstr,"%s",arp_item[0].ip);
+        FREE(arp_item);
+        return ipstr;
+    }
+    return NULL;
+}
+
+char *get_macstr_from_ipstr(char *ipstr)
+{
+    if(!ipstr) return NULL;
+    static char macstr[32] = {0};
+    arp_item *arp_item = NULL;
+    if(arp_query(ARP_IP,ipstr,&arp_item,1) > 0){
+        sprintf(macstr,"%s",macstr_fmt(arp_item[0].mac,":"));
+        FREE(arp_item);
+        return macstr;
+    }
+    return NULL;
+}
+
 char *macstr_fmt(char *mac,char *sep)
 {
     if(!mac || !sep || strlen(sep) > 4) return NULL;
@@ -579,5 +605,13 @@ void test_all_sysinfo_api(void)
     log_string(get_if_ipstr("eth1"));
     log_string(get_if_ipstr("enp0s8"));
     log_string(get_if_ipstr("wlan0"));
+
+    log_string(get_ipstr_from_macstr("50:2b:73:ff:9d:81"));
+    log_string(get_macstr_from_ipstr("172.16.0.155"));
+    log_string(macstr_fmt(get_macstr_from_ipstr("172.16.0.155"),"-"));
+    log_string(macstr_unfmt(macstr_fmt(get_macstr_from_ipstr("172.16.0.155"),"-"),"-"));
+
+    log_string(macstr_fmt(get_macstr_from_ipstr("172.16.0.155"),"="));
+    log_string(macstr_fmt(get_macstr_from_ipstr("172.16.0.155"),""));
 #endif
 }
