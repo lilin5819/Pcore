@@ -152,7 +152,7 @@ static void on_timer_call(uv_timer_t *handle)
 		list_del(node);
 		elink_msg_t *msg = container_of(node,elink_msg_t,list);
 		msg->seq = ctx->seq++;
-		log_s(msg->mac);
+		log_string(msg->mac);
 		uv_queue_work(uv_default_loop(), &msg->msg_req, msg->call, msg->after_call);
 	}else{
 		log_printf("there is no bootup handle to call");
@@ -167,7 +167,7 @@ void msg_add_to_list(elink_session_ctx * ctx,struct list_head *list,char *type)
 		if (!strcmp(msg_call_map[i].call_type, type))
 		{
 			// log_printf("msg->call_type=%s msg_call_map[%d].call_type=%s msg_call_map[%d].cb_type=%s", type, i, msg_call_map[i].call_type, i, msg_call_map[i].cb_type);
-			log_s(type);
+			log_string(type);
 			elink_msg_t * msg =  zmalloc(sizeof(elink_msg_t));
 			memset(msg,0,sizeof(elink_msg_t));
 			msg->call_type = sdsnew(msg_call_map[i].call_type);
@@ -277,17 +277,17 @@ void data_recved_handle(uv_stream_t *stream, uv_buf_t *recved_buf)
 		ctx = (elink_session_ctx *)client->data;
 	log_int(ctx->dh_done);
 	ok(client != NULL);
-	log_s(client->name);
-	log_s(sdscatrepr(sdsempty(),recved_buf->base,recved_buf->len));
+	log_string(client->name);
+	log_string(sdscatrepr(sdsempty(),recved_buf->base,recved_buf->len));
 	s_unpack_data = elink_msg_unpack(ctx,recved_buf);
-	// log_s(s_unpack_data);
+	// log_string(s_unpack_data);
 	log_int(sdslen(s_unpack_data));
 	s_decrypto_data = s_unpack_data;
 	// log_int(ctx->dh_done);
 	if(ctx->dh_done)
 		s_decrypto_data = elink_msg_decrypto(s_unpack_data,ctx->keys.dh_sharekey);
 
-	log_s(sdscatrepr(sdsempty(),s_decrypto_data,sdslen(s_decrypto_data)));
+	log_string(sdscatrepr(sdsempty(),s_decrypto_data,sdslen(s_decrypto_data)));
 	json = cJSON_Parse(s_decrypto_data);
 	log_p(json);
 	if (json)
@@ -312,7 +312,7 @@ void data_recved_handle(uv_stream_t *stream, uv_buf_t *recved_buf)
 					msg->timestamp = client->timestamp;
 					msg->call_type = sdsnew(type);
 					msg->cb_type = sdsempty();
-					log_s(msg->call_type);
+					log_string(msg->call_type);
 					msg->mac = sdsnew(mac);
 					msg->ip = sdsnew(ctx->ip);
 					// msg->gw = sdsnew(ctx->gw);
@@ -344,14 +344,14 @@ void data_recved_handle(uv_stream_t *stream, uv_buf_t *recved_buf)
 void msg_call_ret_check(elink_session_ctx * ctx,elink_msg_t *msg)
 {
 	log_error("TODO: msg_call_ret_check\n");
-	log_s(msg->cb_type);
+	log_string(msg->cb_type);
 	ok(msg->cb_json != NULL);
 	if(!strcmp(msg->cb_type,"dh")){
 		cJSON *obj_data = cJSON_GetObjectItem(msg->cb_json,"data");
-		log_s(cJSON_Print(msg->cb_json));
+		log_string(cJSON_Print(msg->cb_json));
 		ok(obj_data != NULL);
 		char *peer_pubkey = json_get_str(obj_data,"dh_key");
-		log_s(peer_pubkey);
+		log_string(peer_pubkey);
 		sds b64_peer_pubkey = sdsempty();
 		log_();
 		b64_peer_pubkey = sdscpy(b64_peer_pubkey,peer_pubkey);
@@ -461,23 +461,23 @@ void msg_call_done(uv_work_t* req,int status)
 
 	// msg->seq = ctx->seq;
 	msg->mac = sdsnew(ctx->mac);
-	log_s(msg->call_type);
-	// log_s(msg->cb_type);
-	log_s(msg->mac);
+	log_string(msg->call_type);
+	// log_string(msg->cb_type);
+	log_string(msg->mac);
 	log_u(msg->seq);
 	ok(msg->call_json != NULL);
 
 	ctx->seq ++;
 	
-	log_s(msg->mac);
-	log_s(ctx->name);
+	log_string(msg->mac);
+	log_string(ctx->name);
 	ok(msg->cb_json != NULL);
 	char *text = cJSON_Print(msg->call_json);
 	s_data = sdsnew(text);
 
-	log_s(sdscatrepr(sdsempty(),s_data,sdslen(s_data)));
+	log_string(sdscatrepr(sdsempty(),s_data,sdslen(s_data)));
 	s_send_data = elink_msg_pack(ctx,s_data);
-	log_s(sdscatrepr(sdsempty(),s_send_data,sdslen(s_send_data)));
+	log_string(sdscatrepr(sdsempty(),s_send_data,sdslen(s_send_data)));
 	ok(s_send_data != NULL && sdslen(s_send_data) > 0);
 	uv_buf_t buf = uv_buf_init(s_send_data,sdslen(s_send_data));
 
@@ -498,16 +498,16 @@ void msg_cb_done(uv_work_t* req,int status)
 	sds s_data = NULL;
 	sds s_send_data = NULL;
 
-	log_s(msg->mac);
-	log_s(ctx->name);
+	log_string(msg->mac);
+	log_string(ctx->name);
 	log_();
 	ok(msg->cb_json != NULL);
 	char *text = cJSON_Print(msg->cb_json);
 	s_data = sdsnew(text);
-	// log_s(s_data);
-	log_s(sdscatrepr(sdsempty(),s_data,sdslen(s_data)));
+	// log_string(s_data);
+	log_string(sdscatrepr(sdsempty(),s_data,sdslen(s_data)));
 	s_send_data = elink_msg_pack(ctx,s_data);
-	log_s(sdscatrepr(sdsempty(),s_send_data,sdslen(s_send_data)));
+	log_string(sdscatrepr(sdsempty(),s_send_data,sdslen(s_send_data)));
 
 	ok(s_send_data != NULL );
 	ok(sdslen(s_send_data) > 0);
@@ -586,9 +586,9 @@ void msg_dh_call(uv_work_t* req)
 	sds b64_p = b64_block(ctx->keys.dh_p);                                     //将服务器公钥发给客户端
 	sds b64_g = b64_block(ctx->keys.dh_g);                                     //将服务器公钥发给客户端
 	sds b64_pubkey = b64_block(ctx->keys.dh_pubkey);                                     //将服务器公钥发给客户端
-	log_s(b64_p);
-	log_s(b64_g);
-	log_s(b64_pubkey);
+	log_string(b64_p);
+	log_string(b64_g);
+	log_string(b64_pubkey);
 	cJSON_AddStringToObject(send_obj_data, "dh_p", b64_p);
 	cJSON_AddStringToObject(send_obj_data, "dh_g", b64_g);
 	cJSON_AddStringToObject(send_obj_data, "dh_key", b64_pubkey);
@@ -622,9 +622,9 @@ void msg_dh_cb(uv_work_t* req)
 	sdsupdatelen(b64_p);
 	sdsupdatelen(b64_g);
 	sdsupdatelen(b64_peer_pubkey);
-	log_s(b64_p);
-	log_s(b64_g);
-	log_s(b64_peer_pubkey);
+	log_string(b64_p);
+	log_string(b64_g);
+	log_string(b64_peer_pubkey);
 	s_p = unb64_block(b64_p);
 	s_g = unb64_block(b64_g);
 	s_peer_pubkey = unb64_block(b64_peer_pubkey);													//base64解密

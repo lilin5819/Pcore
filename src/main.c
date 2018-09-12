@@ -36,7 +36,7 @@ int main(int argc, char const *argv[])
 
     // server_ctx.client_list = &pcore.client.list;
     log_printf("start_pcore\n");
-    log_s(pcore.cfg.mode_name);
+    log_string(pcore.cfg.mode_name);
     log_int(pcore.cfg.mode);
 
     start_pcore(&pcore);

@@ -17,74 +17,75 @@
  * keys and redis objects as values (objects can hold SDS strings,
  * lists, sets). */
 
-int objectGetType(object *obj)
+int objGetType(object *obj)
 {
     if(!obj) return 0;
     return obj->type;
 }
 
-void* objectGetVal(object *obj)
+void* objGetVal(object *obj)
 {
     if(!obj) return NULL;
     return obj->ptr;
 }
 
-void objectSdsPrint(object *obj)
+void objSdsPrint(object *obj)
 {
-    ok(obj && objectGetType(obj) == OBJ_STRING);
-    log_s(objectGetVal(obj));
+    ok(obj && objGetType(obj) == OBJ_STRING);
+    log_string(objGetVal(obj));
 }
 
-object* objectCreate(uint32_t type,void *ptr)
+object* objCreate(uint32_t type,void *ptr)
 {
     object *obj = zmalloc(sizeof(*obj));
-    memset(obj,0,sizeof(*obj));
-    obj->type = type;
-    obj->ptr = ptr;
+    if(obj){
+        obj->type = type;
+        obj->ptr = ptr;
+    }
     return obj;
 }
 
-void objectSdsDestructor(void *privdata, void *val)
+void objSdsDestructor(void *privdata, void *val)
 {
-    log_();
+    // log_();
     DICT_NOTUSED(privdata);
     sdsfree((sds)val);
 }
 
-void objectListDestructor(void *privdata, void *val)
+void objListDestructor(void *privdata, void *val)
 {
-    log_();
+    // log_();
     DICT_NOTUSED(privdata);
     listRelease((list*)val);
 }
 
-void objectDictDestructor(void *privdata, void *val)
+void objDictDestructor(void *privdata, void *val)
 {
-    log_();
+    // log_();
     DICT_NOTUSED(privdata);
     dictRelease((dict*)val);
 }
 
 // TODO: switch case obj type , different free
-void objectDestructor(void *privdata, void *val)
+void objDestructor(void *privdata, void *val)
 {
     DICT_NOTUSED(privdata);
 
     if (val == NULL) return; /* Lazy freeing will set value to NULL. */
-    void * objVal = objectGetVal(val);
-    switch (objectGetType(val))
+    void * objVal = objGetVal(val);
+    switch (objGetType(val))
     {
         case OBJ_NONE:
         case OBJ_NUM:
         break;
         case OBJ_STRING:
-            objectSdsDestructor(privdata,objVal);
+            objSdsDestructor(privdata,objVal);
         break;
         case OBJ_LIST:
-            objectListDestructor(privdata,objVal);
+            objListDestructor(privdata,objVal);
         break;
         case OBJ_DICT:
-            objectDictDestructor(privdata,objVal);
+            objDictDestructor(privdata,objVal);
         break;
         default:
             zfree(objVal);
@@ -95,53 +96,57 @@ void objectDestructor(void *privdata, void *val)
 
 /* A case insensitive version used for the command lookup table and other
  * places where case insensitive non binary-safe comparison is needed. */
-int dictSdsKeyCaseCompare(void *privdata, const void *key1, const void *key2)
+int keyCaseSdsCompare(void *privdata, const void *key1, const void *key2)
 {
     DICT_NOTUSED(privdata);
 
     return strcasecmp(key1, key2) == 0;
 }
 
-
-void dictPrintSdsPair(dictEntry *de)
+static inline void objDumpInfo(dictEntry *de)
 {
     if(!de) return;
     object * obj = dictGetVal(de);
-    ok(objectGetType(obj) != OBJ_STRING);
-    if(objectGetType(obj) != OBJ_STRING) return;
-    log_printf("key=\"%s\" val=\"%s\"\n",(char *)dictGetKey(de),(char *)objectGetVal(obj));
-}
-
-void dictDumpKVInfo(dictEntry *de)
-{
-    if(!de) return;
-    object * obj = dictGetVal(de);
-    switch(objectGetType(obj)){
+    sds buf = sdsempty();
+    buf = sdscatprintf(buf,"key=\"%s\" ",(char*)dictGetKey(de));
+    switch(objGetType(obj)){
         case OBJ_STRING:
-            log_printf("type=OBJ_STRING ");
+            buf = sdscat(buf,"type=OBJ_STRING ");
             break;
         case OBJ_NUM:
-            log_printf("type=OBJ_NUM ");
+            buf = sdscat(buf,"type=OBJ_NUM ");
             break;
         case OBJ_LIST:
-            log_printf("type=OBJ_LIST ");
+            buf = sdscat(buf,"type=OBJ_LIST ");
             break;
         case OBJ_DICT:
-            log_printf("type=OBJ_DICT ");
+            buf = sdscat(buf,"type=OBJ_DICT ");
             break;
         default: 
-            log_printf("OBJ_UNKNOW ");
+            buf = sdscat(buf,"type=UNKNOW ");
             break;
     }
-    printf("key=\"%s\" ",(char*)dictGetKey(de));
-    if(objectGetType(obj) == OBJ_STRING)
-        printf("val=\"%s\"",(char*)objectGetVal(obj));
-    else if(objectGetType(obj) == OBJ_NUM)
-        printf("val=\"%d\"",(int)objectGetVal(obj));
-    printf("\n");
+    if(objGetType(obj) == OBJ_STRING)
+        buf = sdscatprintf(buf,"val=\"%s\"",(char*)objGetVal(obj));
+    else if(objGetType(obj) == OBJ_NUM)
+        buf = sdscatprintf(buf,"val=\"%d\"",(int)objGetVal(obj));
+    
+    buf = sdscat(buf,"\n");
+    log_printf(buf);
+    sdsfree(buf);
 }
 
-int dictSdsKeyCompare(void *privdata, const void *key1, const void *key2)
+void dictObjDump(dict *objDict)
+{
+    dictEntry *de = NULL;
+    dictIterator *it = dictGetIterator(objDict);
+    while((de = dictNext(it)) != NULL){
+        objDumpInfo(de);
+    }
+    dictReleaseIterator(it);
+}
+
+int keySdsCompare(void *privdata, const void *key1, const void *key2)
 {
     int l1,l2;
     DICT_NOTUSED(privdata);
@@ -153,41 +158,41 @@ int dictSdsKeyCompare(void *privdata, const void *key1, const void *key2)
 }
 
 
-uint64_t dictCaseSdsHash(const void *key) {
+uint64_t caseSdsHash(const void *key) {
     return dictGenCaseHashFunction((unsigned char*)key, sdslen((char*)key));
 }
 
-uint64_t dictSdsHash(const void *key) {
+uint64_t sdsHash(const void *key) {
     return dictGenHashFunction((unsigned char*)key, sdslen((char*)key));
 }
 
 
 /* sdscase --> obj */
-dictType caseSdsDictType = {
-    dictCaseSdsHash,            /* hash function */
+dictType dictCaseSdsObjType = {
+    caseSdsHash,            /* hash function */
     NULL,                       /* key dup */
     NULL,                       /* val dup */
-    dictSdsKeyCaseCompare,      /* key compare */
-    objectSdsDestructor,          /* key destructor */
-    objectDestructor           /* val destructor */
+    keyCaseSdsCompare,      /* key compare */
+    objSdsDestructor,          /* key destructor */
+    objDestructor           /* val destructor */
 };
 
 /* sds --> obj */
-dictType sdsDictType = {
-    dictSdsHash,                /* hash function */
+dictType dictSdsObjType = {
+    sdsHash,                /* hash function */
     NULL,                       /* key dup */
     NULL,                       /* val dup */
-    dictSdsKeyCompare,          /* key compare */
-    objectSdsDestructor,          /* key destructor */
-    objectDestructor           /* val destructor */
+    keySdsCompare,          /* key compare */
+    objSdsDestructor,          /* key destructor */
+    objDestructor           /* val destructor */
 };
 
-dict *dictSdsCreate(void)
+dict *dictSdsObjCreate(void)
 {
-    return dictCreate(&sdsDictType,NULL);
+    return dictCreate(&dictSdsObjType,NULL);
 }
 
-dict *dictCaseSdsCreate(void)
+dict *dictCaseSdsObjCreate(void)
 {
-    return dictCreate(&caseSdsDictType,NULL);
+    return dictCreate(&dictCaseSdsObjType,NULL);
 }

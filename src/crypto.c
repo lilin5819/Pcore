@@ -97,7 +97,7 @@ sds aes128_cmd(sds in, sds key, int do_encrypt)
 	EVP_CIPHER_CTX_set_padding(ctx, 0);
 	// log_int(sdslen(in));
 	// if(do_encrypt)
-	// 	log_s(in);
+	// 	log_string(in);
 	buf = calloc(1, sdslen(in) + 1);
 
 	if (!buf)
@@ -210,9 +210,9 @@ int main(int argc, char const *argv[])
 	// s_p = encode_b64(s_p);
 	// s_g = encode_b64(s_g);
 	// s_pubkey = encode_b64(s_pubkey);
-	// log_s(s_p);
-	// log_s(s_g);
-	// log_s(s_pubkey);
+	// log_string(s_p);
+	// log_string(s_g);
+	// log_string(s_pubkey);
 	// log_int(sdslen(s_p));
 	// log_int(sdslen(s_g));
 	// log_int(sdslen(s_pubkey));

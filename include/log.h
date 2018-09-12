@@ -88,7 +88,7 @@ extern void set_log_mode(unsigned char mode);
   int _log_fd = 0;                                                     \
   size_t _log_line_sum = 0;                                            \
   size_t _log_max_line = 1000;                                         \
-  int _log_level = 2;                                                  \
+  int _log_level = 3;                                                  \
   void set_log_app(char *appname) {                                    \
     if (!appname) return;                                              \
     _log_app_name = appname;                                           \

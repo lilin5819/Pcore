@@ -108,10 +108,10 @@ void read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
     pcore_client_ctx *ctx = container_of(stream, pcore_client_ctx, tcp_handle);
     if(ctx == g_client_list->head->value){
         log_printf("this is pcore core client\n");
-        log_s(ctx->name);   //will print client
-        log_s(ctx->gw);   //will print client
-        log_s(ctx->mac);   //will print client
-        log_s(ctx->ip);   //will print client
+        log_string(ctx->name);   //will print client
+        log_string(ctx->gw);   //will print client
+        log_string(ctx->mac);   //will print client
+        log_string(ctx->ip);   //will print client
     }else{
         log_printf("another client\n");
     }
@@ -119,7 +119,7 @@ void read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
     uv_buf_t recved_buf;
     ok(ctx != NULL);
     log_int(nread);
-    // log_s(g_server_ctx->name);
+    // log_string(g_server_ctx->name);
 
     if (nread < 0)
     {
@@ -181,7 +181,7 @@ void on_server_mode_connect(uv_stream_t *stream, int status)
     }
     pcore_server_ctx *server = container_of(stream, pcore_server_ctx, tcp_handle);
     ok(server != NULL);
-    log_s(server->name);
+    log_string(server->name);
     pcore_client_ctx *client = client_ctx_alloc();
     ok(client != NULL);
     if (!client)

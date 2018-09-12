@@ -18,7 +18,7 @@ LOG_DEF();
 
 long long timeInMilliseconds(void);
 
-#define start_benchmark() start = timeInMilliseconds()
+    #define start_benchmark() start = timeInMilliseconds()
 #define end_benchmark(msg) do { \
     elapsed = timeInMilliseconds()-start; \
     printf(msg ": %ld items in %lld ms\n", count, elapsed); \
@@ -34,13 +34,11 @@ int main(int argc, char **argv) {
 
     long j;
     long long start, elapsed;
-    // dict *dict = dictCreate(&BenchmarkDictType,NULL);
+    dictEntry *de = NULL;
     log_();
-    // dict *dict = dictCreate(&sdsDictType,NULL);
-    dict *dict = dictSdsCreate();
+    dict *sdsObjDict = dictSdsObjCreate();
     log_();
     long count = 0;
-    dictEntry *de = NULL;
 
     if (argc == 2) {
         count = strtol(argv[1],NULL,10);
@@ -52,48 +50,44 @@ int main(int argc, char **argv) {
     start_benchmark();
     for (j = 0; j < count; j++) {
         sds key = sdsfromlonglong(j);
-        int retval = dictAdd(dict,key , objectCreate(OBJ_STRING,sdsfromlonglong(j)) );
+        int retval = dictAdd(sdsObjDict,key , objCreate(OBJ_STRING,sdsfromlonglong(j)) );
         assert(retval == DICT_OK);
     }
     for (j = 100+0; j < 100+count; j++) {
         sds key = sdsfromlonglong(j);
-        int retval = dictAdd(dict,key , objectCreate(OBJ_LIST,listCreate()) );
+        int retval = dictAdd(sdsObjDict,key , objCreate(OBJ_LIST,listCreate()) );
         assert(retval == DICT_OK);
     }
     for (j = 200+0; j < 200+count; j++) {
         sds key = sdsfromlonglong(j);
-        int retval = dictAdd(dict,key , objectCreate(OBJ_DICT,dictSdsCreate()) );
+        int retval = dictAdd(sdsObjDict,key , objCreate(OBJ_DICT,dictSdsObjCreate()) );
         assert(retval == DICT_OK);
     }
     for (j = 300+0; j < 300+count; j++) {
         sds key = sdsfromlonglong(j);
-        int retval = dictAdd(dict,key , objectCreate(OBJ_NUM,j) );
+        int retval = dictAdd(sdsObjDict,key , objCreate(OBJ_NUM,j) );
         assert(retval == DICT_OK);
     }
     end_benchmark("Inserting");
-    assert((long)dictSize(dict) == 4*count);
+    assert((long)dictSize(sdsObjDict) == 4*count);
     log_int(zmalloc_used_memory());
 
     /* Wait for rehashing. */
-    while (dictIsRehashing(dict)) {
-        dictRehashMilliseconds(dict,100);
+    while (dictIsRehashing(sdsObjDict)) {
+        dictRehashMilliseconds(sdsObjDict,100);
         printf("rehash\n");
     }
     log_int(zmalloc_used_memory());
 
     start_benchmark();
-    dictIterator *it = dictGetIterator(dict);
-    while((de = dictNext(it)) != NULL){
-        // dictSdsPairPrint(de);
-        dictDumpKVInfo(de);
-    }
-    dictReleaseIterator(it);
+    dictObjDump(sdsObjDict);
+
     end_benchmark("Linear iter");
 
     start_benchmark();
     for (j = 0; j < count; j++) {
         sds key = sdsfromlonglong(j);
-        de = dictFind(dict,key);
+        de = dictFind(sdsObjDict,key);
         assert(de != NULL);
         sdsfree(key);
     }
@@ -102,7 +96,7 @@ int main(int argc, char **argv) {
     start_benchmark();
     for (j = 0; j < count; j++) {
         sds key = sdsfromlonglong(rand() % count);
-        de = dictFind(dict,key);
+        de = dictFind(sdsObjDict,key);
         assert(de != NULL);
         sdsfree(key);
     }
@@ -112,7 +106,7 @@ int main(int argc, char **argv) {
     for (j = 0; j < count; j++) {
         sds key = sdsfromlonglong(rand() % count);
         key[0] = 'X';
-        de = dictFind(dict,key);
+        de = dictFind(sdsObjDict,key);
         assert(de == NULL);
         sdsfree(key);
     }
@@ -121,16 +115,16 @@ int main(int argc, char **argv) {
     start_benchmark();
     for (j = 0; j < count; j++) {
         sds key = sdsfromlonglong(j);
-        int retval = dictDelete(dict,key);
+        int retval = dictDelete(sdsObjDict,key);
         assert(retval == DICT_OK);
         key[0] += 17; /* Change first number to letter. */
-        retval = dictAdd(dict,key,objectCreate(OBJ_STRING,sdsdup(key)) );
+        retval = dictAdd(sdsObjDict,key,objCreate(OBJ_STRING,sdsdup(key)) );
         assert(retval == DICT_OK);
     }
     end_benchmark("Removing and adding");
     log_int(zmalloc_used_memory());
 
-    dictRelease(dict);
+    dictRelease(sdsObjDict);
     log_int(zmalloc_used_memory());
 
 }

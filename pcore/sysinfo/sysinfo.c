@@ -471,7 +471,7 @@ char *get_if_info(char *ifname,int cmd)
             break;
     }
  
-    // log_s(value);
+    // log_string(value);
     close(socketfd);
  
     return value;   

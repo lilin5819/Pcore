@@ -29,7 +29,7 @@ char *get_if_ipstr(char *ifname)
 
         if(!strcmp(interface.name,ifname) && (interface.address.address4.sin_family == AF_INET)){
             uv_ip4_name(&interface.address.address4, ipstr, sizeof(ipstr));
-            // log_s(ipstr);
+            // log_string(ipstr);
             return strdup(ipstr);
         }
     }
@@ -81,8 +81,8 @@ void timer_netcheck_cb(uv_timer_t *handle)
     // }
     // if(!gw || pcore->client.online == 1)
     //     return;
-    // // log_s(ipstr);
-    // // log_s(gw);
+    // // log_string(ipstr);
+    // // log_string(gw);
     // pcore->client.online = 1;
     // pcore->client.ip = "127.0.0.1";
     // pcore->client.mac = strdup(get_netdev_info(get_gw_if(),"address"));

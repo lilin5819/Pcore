@@ -18,25 +18,25 @@ typedef struct object {
     void *ptr;
 } object;
 
-object* objectCreate(uint32_t type,void *ptr);
-int objectGetType(object *obj);
-void* objectGetVal(object *obj);
-void objectSdsPrint(object *obj);
-void objectDestructor(void *privdata, void *val);
-void objectSdsDestructor(void *privdata, void *val);
-void objectListDestructor(void *privdata, void *val);
-void objectDictDestructor(void *privdata, void *val);
+object* objCreate(uint32_t type,void *ptr);
+int objGetType(object *obj);
+void* objGetVal(object *obj);
+void objSdsPrint(object *obj);
 
-uint64_t dictSdsCaseHash(const void *key);
-uint64_t dictSdsHash(const void *key);
-void dictDumpKVInfo(dictEntry *de);
-void dictDump(dict *dict);
-void dictPrintSdsPair(dictEntry *de);
-int dictSdsKeyCompare(void *privdata, const void *key1, const void *key2);
-int dictSdsKeyCaseCompare(void *privdata, const void *key1, const void *key2);
+uint64_t caseSdsHash(const void *key);
+uint64_t sdsHash(const void *key);
 
-dict *dictSdsCreate(void);
-dict *dictCaseSdsCreate(void);
+void objDestructor(void *privdata, void *val);
+void objSdsDestructor(void *privdata, void *val);
+void objListDestructor(void *privdata, void *val);
+void objDictDestructor(void *privdata, void *val);
+
+void dictSdsObjDump(dict *dict);
+int keySdsCompare(void *privdata, const void *key1, const void *key2);
+int keyCaseSdsCompare(void *privdata, const void *key1, const void *key2);
+
+dict *dictSdsObjCreate(void);
+dict *dictCaseSdsObjCreate(void);
 // list *listObjectCreate(void);
 // list *listObjectDump(void);
 
