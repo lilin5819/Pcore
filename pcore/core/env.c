@@ -1,10 +1,20 @@
-#include <uv.h>
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include "log.h"
 #include "core.h"
+#include "env.h"
 
+#include<arpa/inet.h>
+#include<sys/ioctl.h>
+#include<sys/socket.h>
+#include<net/if.h>
+#include <sys/types.h>
+#include <netinet/in.h> 
+#include <netinet/ip.h>
+#include <net/ethernet.h>
+#include <netinet/ether.h> 
+
+#include "sysinfo.h"
+#include "log.h"
+
+#ifdef USE_UV_NET_API
 char *get_if_ipstr(char *ifname) 
 {
     char ipstr[32] = {0};
@@ -50,35 +60,36 @@ char *get_if_macstr(char *ifname)
     uv_free_interface_addresses(info, count);
     return NULL;
 }
+#endif
 
-char *get_gw(void)
+
+
+// TODO: 完善网络检测层，自连自回收，实现勤奋检测和懒惰检测的自动切换和被动切换
+void timer_netcheck_cb(uv_timer_t *handle)
 {
-    FILE *f;
-    char line[100] , *p , *c, *g, *saveptr;
+    pcore_ctx *pcore = container_of(handle, pcore_ctx, timer_netcheck_handle);
+    // if(pcore->cfg.mode == ELINK_SERVER_MODE) return;
 
-    f = fopen("/proc/net/route" , "r");
-    while(fgets(line , 100 , f))
-    {
-        p = strtok_r(line , " \t", &saveptr);
-        c = strtok_r(NULL , " \t", &saveptr);
-        g = strtok_r(NULL , " \t", &saveptr);
-        if(p!=NULL && c!=NULL)
-        {
-            if(strcmp(c , "00000000") == 0)
-            {
-                if (g)
-                {
-                    char *pend;
-                    int ng=strtol(g,&pend,16);
-                    struct in_addr addr;
-                    addr.s_addr=ng;
-                    return strdup(inet_ntoa(addr));
-                }
-                break;
-            }
-        }
-    }
+    // char * ipstr = get_if_ipstr("wlan0");
+    // char * macstr = get_if_macstr("wlan0");
+    // char * gw = get_gw();
 
-    fclose(f);
-    return NULL;
+    // if(!ipstr && pcore->client.online == 1){
+    //     uv_close((uv_handle_t*)&pcore->client.tcp_handle,close_cb);
+    //     pcore->client.online = 0;
+    //     return;
+    // }
+    // if(!gw || pcore->client.online == 1)
+    //     return;
+    // // log_s(ipstr);
+    // // log_s(gw);
+    // pcore->client.online = 1;
+    // pcore->client.ip = "127.0.0.1";
+    // pcore->client.mac = strdup(get_netdev_info(get_gw_if(),"address"));
+    // pcore->client.gw = "127.0.0.1";
+    // ok(0 == uv_tcp_init(uv_default_loop(), &pcore->client.tcp_handle));
+    // ok(0 == uv_ip4_addr("127.0.0.1", ELINK_SERVER_PORT, &pcore->client.addr));
+    // ok(0 == uv_tcp_connect(&pcore->client.conn,&pcore->client.tcp_handle,(struct sockaddr *)&pcore->client.addr,on_client_mode_connect));
+
+    test_all_sysinfo_api();
 }

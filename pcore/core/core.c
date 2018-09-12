@@ -2,7 +2,7 @@
 #include "env.h"
 #include "log.h"
 #include "zmalloc.h"
-
+#include "sysinfo.h"
 #ifdef CONFIG_MSG
 #include "msg.h"
 #endif
@@ -210,38 +210,6 @@ error:
     return;
 }
 
-
-// TODO: 完善网络检测层，自连自回收，实现勤奋检测和懒惰检测的自动切换和被动切换
-static void timer_netcheck_cb(uv_timer_t *handle)
-{
-    pcore_ctx *pcore = container_of(handle, pcore_ctx, timer_netcheck_handle);
-    if(pcore->cfg.mode == ELINK_SERVER_MODE) return;
-
-    char * ipstr = get_if_ipstr("wlan0");
-    char * macstr = get_if_macstr("wlan0");
-    char * gw = get_gw();
-
-    if(!ipstr && pcore->client.online == 1){
-        uv_close((uv_handle_t*)&pcore->client.tcp_handle,close_cb);
-        pcore->client.online = 0;
-        return;
-    }
-    if(!gw || pcore->client.online == 1)
-        return;
-    // log_s(ipstr);
-    // log_s(gw);
-    pcore->client.online = 1;
-    pcore->client.ip = "127.0.0.1";
-    pcore->client.mac = strdup(macstr);
-    pcore->client.gw = "127.0.0.1";
-    ok(0 == uv_tcp_init(uv_default_loop(), &pcore->client.tcp_handle));
-    ok(0 == uv_ip4_addr("127.0.0.1", ELINK_SERVER_PORT, &pcore->client.addr));
-    ok(0 == uv_tcp_connect(&pcore->client.conn,&pcore->client.tcp_handle,(struct sockaddr *)&pcore->client.addr,on_client_mode_connect));
-
-    FREE(ipstr);
-    FREE(macstr);
-    FREE(gw);
-}
 
 int add_layer(pcore_ctx *pcore,pcore_layer_t *layer)
 {

@@ -140,7 +140,7 @@ void elink_msg_free(elink_msg_t *msg)
 	SDS_FREE(msg->mac);
 	JSON_FREE(msg->call_json);
 	JSON_FREE(msg->cb_json);
-	FREE(msg)
+	FREE(msg);
 }
 
 static void on_timer_call(uv_timer_t *handle)

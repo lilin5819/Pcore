@@ -5,8 +5,8 @@
  * Distributed under terms of the MIT license.
  */
 
-#ifndef LOG_H
-#define LOG_H
+#ifndef _LOG_H_
+#define _LOG_H_
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,9 +28,9 @@
 #define log_base(...)
 #define logs(...)                                             // 类printf函数 绿色
 #define log_(...)                                             // 代码函数
-#define log_errorrr_base(...)
-#define log_error(...)                                            // 类printf函数 红色警告
-#define log_int(...)                                            //  打印 int
+#define log_err_base(...)
+#define log_e(...)                                            // 类printf函数 红色警告
+#define log_d(...)                                            //  打印 int
 #define log_u(...)                                            //  打印 uint
 #define log_ld(...)                                           //  打印 long
 #define log_lu(...)                                           //  打印 ulong
@@ -162,8 +162,8 @@ static inline void log_base(const int level,const char flag, const char *tag, co
 #define logs(...) log_line(_LV_NOMRL,_GRE, NULL, __VA_ARGS__)
 #define log_() log_line(_LV_LOW,_GRE | _NEW_LINE, NULL, "line")
 #define log_tag_base(level,tag, ...) log_line(level,_GRE | _NEW_LINE, tag, __VA_ARGS__)
-#define log_errorrr_base(level,MSG, ...) log_line(level,_RED | _FLASH, MSG, __VA_ARGS__)
-#define log_error(...) log_errorrr_base(_LV_MUST,"ERROR", __VA_ARGS__)
+#define log_err_base(level,MSG, ...) log_line(level,_RED | _FLASH, MSG, __VA_ARGS__)
+#define log_e(...) log_err_base(_LV_MUST,"ERROR", __VA_ARGS__)
 #define log_d(N) log_tag_base(_LV_NOMRL,"int", "%s=%d", #N, N)
 #define log_u(N) log_tag_base(_LV_NOMRL,"uint", "%s=%u", #N, N)
 #define log_ld(N) log_tag_base(_LV_NOMRL,"long", "%s=%ld", #N, N)
@@ -173,7 +173,7 @@ static inline void log_base(const int level,const char flag, const char *tag, co
 #define log_p(N)                               \
   do {                                         \
     if (!N)                                    \
-      log_errorrr_base(_LV_MUST,_NULL_ERR, "%s\n", #N);     \
+      log_err_base(_LV_MUST,_NULL_ERR, "%s\n", #N);     \
     else                                       \
       log_tag_base(_LV_NOMRL,"pointer", "%s=%p", #N, N); \
   } while (0)
@@ -181,9 +181,9 @@ static inline void log_base(const int level,const char flag, const char *tag, co
 #define log_s(STR)                                    \
   do {                                                \
     if (!STR)                                         \
-      log_errorrr_base(0,_NULL_ERR, "%s\n", #STR);          \
+      log_err_base(0,_NULL_ERR, "%s\n", #STR);          \
     else if (!((char *)(STR))[0])                     \
-      log_errorrr_base(0,_BLANK_ERR, "%s=\"\"\n", #STR);    \
+      log_err_base(0,_BLANK_ERR, "%s=\"\"\n", #STR);    \
     else                                              \
       log_tag_base(_LV_NOMRL,"string", "%s=\"%s\"", #STR, STR); \
   } while (0)
@@ -191,15 +191,17 @@ static inline void log_base(const int level,const char flag, const char *tag, co
 #define log_mem(P, LEN)                                                \
   do {                                                                 \
     int i = 0;                                                         \
-    char hexbuf[2 * (LEN) + 1];                                        \
-    hexbuf[2 * (LEN)] = '\0';                                          \
-    for (i = 0; i < LEN; i++) {                                        \
-      sprintf(hexbuf + 2 * i, "%02X", ((char *)P)[i] & 0xFF);          \
+    void *addr = P;                                                      \
+    int len = (LEN) > 4096 ? (LEN) : 4096; \
+    char hexbuf[2 * len + 1];                                        \
+    hexbuf[2 * len] = '\0';                                          \
+    for (i = 0; i < len; i++) {                                        \
+      sprintf(hexbuf + 2 * i, "%02X", ((char *)addr)[i] & 0xFF);          \
     }                                                                  \
     if (!P)                                                            \
-      log_errorrr_base(0,_NULL_ERR, "%s\n", #P);                             \
+      log_err_base(0,_NULL_ERR, "%s\n", #P);                             \
     else                                                               \
-      log_tag_base(_LV_NOMRL,"MEMORY", "p:%s addr:%p len:%d HEX:%s", #P, P, LEN, \
+      log_tag_base(_LV_NOMRL,"MEMORY", "p:%s addr:%p len:%d HEX:%s", #P, addr, len, \
                    hexbuf);                                            \
   } while (0)
 
@@ -207,7 +209,7 @@ static inline void log_base(const int level,const char flag, const char *tag, co
 #define ok(expr)                    \
   do {                              \
     if (!(expr))                    \
-      log_errorrr_base(1,_ASSERT_ERR,     \
+      log_err_base(1,_ASSERT_ERR,     \
                    "assert msg: \"" \
                    "%s"             \
                    "\"\n",          \
@@ -218,7 +220,7 @@ static inline void log_base(const int level,const char flag, const char *tag, co
 // 自定义别名
 
 #define log_printf logs
-#define log_errorrror log_error
+#define log_error log_e
 #define log_size log_lu
 #define log_int log_d
 #define log_uint log_u
@@ -234,4 +236,4 @@ static inline void log_base(const int level,const char flag, const char *tag, co
 #define log_msg(level, ...) log_line(level,_GRE, NULL, __VA_ARGS__)
 #define log_debug logs
 
-#endif /* !LOG_H */
+#endif /* !_LOG_H_ */

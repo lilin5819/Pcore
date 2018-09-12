@@ -82,18 +82,15 @@ typedef struct ELINK_HEADER
 #define SDS_FREE(x)        \
     do                 \
     {                  \
-            sdsfree(x);   \
-            x = NULL;  \
+          sdsfree(x);   \
+          x = NULL;  \
     } while (0);
 
 #define JSON_FREE(x)        \
     do                 \
     {                  \
-        if (x != NULL) \
-        {              \
             cJSON_Delete(x);   \
             x = NULL;  \
-        }              \
     } while (0);
 
 #define log_sds_h(x)        \

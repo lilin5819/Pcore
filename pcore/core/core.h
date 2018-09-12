@@ -1,9 +1,15 @@
 #ifndef _CORE_H_
 
-#include <stdint.h>
-#include <uv.h>
+#include "common.h"
 // #include "list.h"
 #include "adlist.h"
+#include "log.h"
+
+#include "env.h"
+#include "gc.h"
+#include "env.h"
+#include "session.h"
+#include "stastic.h"
 
 #define ELINK_SERVER_IP "0.0.0.0"
 #define ELINK_SERVER_PORT 32768
@@ -11,26 +17,6 @@
 
 #define ELINK_SERVER_MODE 1
 #define ELINK_CLIENT_MODE 0
-
-#define CONTAINER_OF(ptr, type, field)                                        \
-  ((type *) ((char *) (ptr) - ((char *) &((type *) 0)->field)))
-
-#ifndef container_of
-#define container_of(ptr, type, member) \
-	((type *)((char *)(ptr) - offsetof(type, member)))
-#endif
-
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
-
-#define FREE(x)        \
-    do                 \
-    {                  \
-        if (x != NULL) \
-        {              \
-            zfree(x);   \
-            x = NULL;  \
-        }              \
-    } while (0);
 
 #define DEFAULT_BACKLOG 128
 
@@ -81,7 +67,7 @@ typedef struct pcore_cfg_t
   char* mode_name;
 } pcore_cfg_t;
 
-typedef enum{
+typedef enum LAYER_T{
     LAYER_SIGNAL,
     LAYER_TIMER,
     LAYER_ASYNC,
@@ -89,11 +75,11 @@ typedef enum{
     LAYER_SERVER,
     LAYER_CLIENT,
     LAYER_AGENT
-}layer_type;
+}LAYER_T;
 
 typedef struct pcore_layer_t
 {
-    int type;
+    LAYER_T type;
     int id;
     char *name;
     uv_handle_t handle;
